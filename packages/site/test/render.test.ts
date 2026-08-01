@@ -58,6 +58,17 @@ describe('renderReadme', () => {
     expect(html).toContain('loading="lazy"')
   })
 
+  it('leaves an explicit loading value alone rather than duplicating it', () => {
+    const { html } = renderReadme('<img src="hero.webp" loading="eager">')
+    expect(html).toContain('loading="eager"')
+    expect(html).not.toContain('loading="lazy"')
+    expect(html.match(/loading=/g)).toHaveLength(1)
+  })
+
+  it('gives headings decoded plain text, so consumers escape exactly once', () => {
+    expect(renderReadme('## Tools &amp; toys\n').headings[0]!.text).toBe('Tools & toys')
+  })
+
   it('handles the real SurvivalRP README', () => {
     const { html, headings } = renderReadme(real)
     expect(headings.length).toBeGreaterThanOrEqual(6)

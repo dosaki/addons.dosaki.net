@@ -38,20 +38,39 @@ const ALLOWED: sanitizeHtml.IOptions = {
   // Relative asset URLs must survive; sanitize-html drops them without this.
   allowProtocolRelative: false,
   nonTextTags: ['style', 'script', 'textarea', 'option', 'noscript'],
+  transformTags: {
+    img: (tagName, attribs) => ({
+      tagName,
+      // Only default it: an author who set loading explicitly keeps their value.
+      attribs: { loading: 'lazy', ...attribs },
+    }),
+  },
 }
 
 const HEADING = /<h2\b[^>]*\bid="([^"]+)"[^>]*>(.*?)<\/h2>/gis
 
+/**
+ * Decode the standard five entities so a heading's text is genuine plain
+ * text - `&amp;` LAST, so `&amp;lt;` decodes to `&lt;` rather than `<`.
+ */
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+}
+
 export function renderReadme(markdown: string): Rendered {
   const raw = md.render(markdown)
   const clean = sanitizeHtml(raw, ALLOWED)
-  const lazy = clean.replace(/<img /g, '<img loading="lazy" ')
 
   const headings: Heading[] = []
-  for (const m of lazy.matchAll(HEADING)) {
-    const text = m[2]!.replace(/<[^>]*>/g, '').trim()
+  for (const m of clean.matchAll(HEADING)) {
+    const text = decodeEntities(m[2]!.replace(/<[^>]*>/g, '')).trim()
     if (text.length > 0) headings.push({ id: m[1]!, text })
   }
 
-  return { html: lazy, headings }
+  return { html: clean, headings }
 }
