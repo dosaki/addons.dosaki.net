@@ -43,5 +43,7 @@ export interface Manifest {
   tagline: string
   version: string
   interface?: string
+  /** Bundle key of the addon's icon, by convention docs/icon.svg. */
+  icon?: string
   images: string[]
 }

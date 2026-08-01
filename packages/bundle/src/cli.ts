@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { buildBundle } from './bundle.js'
 import { parseForm } from './forms.js'
@@ -20,6 +20,10 @@ export interface GenerateOptions {
 /** `config.yml` configures the chooser; it is not a form. */
 const NOT_A_FORM = new Set(['config.yml', 'config.yaml'])
 
+/** Addons keep their icon here by convention, whether or not the README shows it. */
+const ICON_PATH = 'docs/icon.svg'
+const ICON_KEY = 'icon.svg'
+
 export async function generate(options: GenerateOptions): Promise<Uint8Array> {
   const readmeSource = readFileSync(join(options.root, options.readmePath), 'utf8')
   const { markdown, images, flattenedLinks } = rewriteReadme(readmeSource)
@@ -37,6 +41,14 @@ export async function generate(options: GenerateOptions): Promise<Uint8Array> {
     encoded[key] = await optimiseImage(key, readFileSync(join(options.root, path)))
   }
 
+  let icon: string | undefined
+  const iconFile = join(options.root, ICON_PATH)
+  if (existsSync(iconFile)) {
+    icon = ICON_KEY
+    // May already be present if the README references it; encoding is idempotent.
+    encoded[ICON_KEY] ??= await optimiseImage(ICON_KEY, readFileSync(iconFile))
+  }
+
   if (flattenedLinks.length > 0) {
     console.log(`Flattened ${flattenedLinks.length} repo-relative link(s): ${flattenedLinks.join(', ')}`)
   }
@@ -48,6 +60,7 @@ export async function generate(options: GenerateOptions): Promise<Uint8Array> {
     tagline: options.tagline,
     version: options.version,
     interfaceVersion: options.interfaceVersion,
+    icon,
     readme: markdown,
     forms,
     images: encoded,

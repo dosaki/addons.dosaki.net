@@ -96,4 +96,66 @@ describe('generate', () => {
     const manifest = JSON.parse(strFromU8(files['manifest.json']!)) as Manifest
     expect(manifest.images).toEqual(['shot.webp'])
   }, 30_000)
+
+  it('bundles the addon icon even when the README never shows it', async () => {
+    const root = fakeAddon()
+    writeFileSync(join(root, 'README.md'), '# Thing\n\nNo icon here.\n')
+    writeFileSync(join(root, 'docs', 'icon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>')
+
+    const files = unzipSync(
+      await generate({
+        root,
+        slug: 'thing',
+        name: 'Thing',
+        tagline: 'A thing.',
+        version: '1.0.0',
+        readmePath: 'README.md',
+        templatesDir: '.github/ISSUE_TEMPLATE',
+      }),
+    )
+
+    expect(Object.keys(files)).toContain('images/icon.svg')
+    const manifest = JSON.parse(strFromU8(files['manifest.json']!)) as Manifest
+    expect(manifest.icon).toBe('icon.svg')
+    expect(manifest.images).toContain('icon.svg')
+  }, 30_000)
+
+  it('omits icon from the manifest when the addon has none', async () => {
+    const root = fakeAddon()
+    writeFileSync(join(root, 'README.md'), '# Thing\n\nNo icon here.\n')
+
+    const files = unzipSync(
+      await generate({
+        root,
+        slug: 'thing',
+        name: 'Thing',
+        tagline: 'A thing.',
+        version: '1.0.0',
+        readmePath: 'README.md',
+        templatesDir: '.github/ISSUE_TEMPLATE',
+      }),
+    )
+    const manifest = JSON.parse(strFromU8(files['manifest.json']!)) as Manifest
+    expect('icon' in manifest).toBe(false)
+  }, 30_000)
+
+  it('does not bundle the icon twice when the README does show it', async () => {
+    const root = fakeAddon()
+    writeFileSync(join(root, 'README.md'), '# Thing\n\n<img src="./docs/icon.svg">\n')
+    writeFileSync(join(root, 'docs', 'icon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>')
+
+    const files = unzipSync(
+      await generate({
+        root,
+        slug: 'thing',
+        name: 'Thing',
+        tagline: 'A thing.',
+        version: '1.0.0',
+        readmePath: 'README.md',
+        templatesDir: '.github/ISSUE_TEMPLATE',
+      }),
+    )
+    const manifest = JSON.parse(strFromU8(files['manifest.json']!)) as Manifest
+    expect(manifest.images.filter((i) => i === 'icon.svg')).toHaveLength(1)
+  }, 30_000)
 })

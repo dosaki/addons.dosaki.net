@@ -7,6 +7,7 @@ export interface BundleInput {
   tagline: string
   version: string
   interfaceVersion?: string
+  icon?: string
   readme: string
   forms: FormDefinition[]
   images: Record<string, Uint8Array>
@@ -22,6 +23,7 @@ export function buildBundle(input: BundleInput): Uint8Array {
     images: Object.keys(input.images).sort(),
   }
   if (input.interfaceVersion !== undefined) manifest.interface = input.interfaceVersion
+  if (input.icon !== undefined) manifest.icon = input.icon
 
   const files: Record<string, Uint8Array> = {
     'manifest.json': strToU8(`${JSON.stringify(manifest, null, 2)}\n`),
