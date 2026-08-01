@@ -80,6 +80,15 @@ export function indexPage(addons: AddonPage[], unavailable: string[]): string {
   )
 }
 
+export function methodNotAllowedPage(): string {
+  return shell(
+    'Method not allowed - addons.dosaki.net',
+    `<header class="site"><div class="wrap"><div class="row">
+<div><h1>Method not allowed</h1><p>This site only answers GET requests.</p></div>
+</div></div></header>`,
+  )
+}
+
 export function notFoundPage(addons: AddonPage[]): string {
   const links = addons
     .map((a) => `<li><a href="/${esc(a.slug)}">${esc(a.name)}</a></li>`)

@@ -1,4 +1,4 @@
-import { addonPage, indexPage, notFoundPage } from './templates.js'
+import { addonPage, indexPage, methodNotAllowedPage, notFoundPage } from './templates.js'
 import type { AddonPage, SiteData } from './types.js'
 
 export interface Response {
@@ -40,7 +40,12 @@ function find(site: SiteData, slug: string): AddonPage | undefined {
  */
 export function route(site: SiteData, method: string, path: string): Response | null {
   if (method !== 'GET' && method !== 'HEAD') {
-    return html(405, notFoundPage(site.addons))
+    return {
+      statusCode: 405,
+      headers: { ...HTML, allow: 'GET, HEAD' },
+      body: methodNotAllowedPage(),
+      isBase64Encoded: false,
+    }
   }
 
   const clean = path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path
@@ -55,7 +60,13 @@ export function route(site: SiteData, method: string, path: string): Response | 
     if (addon === undefined || addon.version !== parts[2]) {
       return html(404, notFoundPage(site.addons))
     }
-    const key = decodeURIComponent(parts[3]!)
+    let key: string
+    try {
+      key = decodeURIComponent(parts[3]!)
+    } catch {
+      // A malformed percent-sequence is a bad request, not a server fault.
+      return html(404, notFoundPage(site.addons))
+    }
     const bytes = addon.assets.get(key)
     if (bytes === undefined) return html(404, notFoundPage(site.addons))
 

@@ -68,7 +68,11 @@ describe('route', () => {
   })
 
   it('405s a non-GET', () => {
-    expect(route(site, 'POST', '/')!.statusCode).toBe(405)
+    const r = route(site, 'POST', '/')!
+    expect(r.statusCode).toBe(405)
+    expect(r.headers['allow']).toBe('GET, HEAD')
+    expect(r.body).not.toContain('No addon lives at that address')
+    expect(r.body).toContain('Method not allowed')
   })
 
   it('ignores a trailing slash', () => {
@@ -78,5 +82,10 @@ describe('route', () => {
   it('refuses a traversal attempt in an asset path', () => {
     const r = route(site, 'GET', '/assets/survivalrp/1.2.2/..%2Fmanifest.json')!
     expect(r.statusCode).toBe(404)
+  })
+
+  it('404s a malformed percent-sequence rather than throwing', () => {
+    expect(() => route(site, 'GET', '/assets/survivalrp/1.2.2/%zz')).not.toThrow()
+    expect(route(site, 'GET', '/assets/survivalrp/1.2.2/%zz')!.statusCode).toBe(404)
   })
 })
