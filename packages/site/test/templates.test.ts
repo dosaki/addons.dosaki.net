@@ -59,7 +59,18 @@ describe('addonPage', () => {
   it('escapes the tagline rather than trusting it', () => {
     const evil = { ...addon, tagline: '<img src=x onerror=alert(1)>' }
     const html = addonPage(evil)
-    expect(html).not.toContain('onerror')
+    // Escaping NEUTRALISES the markup; it does not remove the characters. The
+    // literal text "onerror" is still present and inert, so asserting its
+    // absence would be testing the wrong property.
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
+    expect(html).not.toContain('<img src=x')
+  })
+
+  it('escapes the addon name in both the title and the heading', () => {
+    const evil = { ...addon, name: '</title><script>alert(1)</script>' }
+    const html = addonPage(evil)
+    expect(html).not.toContain('<script>')
+    expect(html).not.toContain('</title><')
   })
 })
 
