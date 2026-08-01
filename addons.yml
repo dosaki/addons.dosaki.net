@@ -1,0 +1,5 @@
+# Every addon the site knows about. Adding one is an entry here plus
+# installing the GitHub App on its repository.
+addons:
+  - slug: survivalrp
+    repo: dosaki/survivalrp
