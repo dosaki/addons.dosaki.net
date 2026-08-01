@@ -1,0 +1,33 @@
+name: Food or drink not detected
+description: Something you consumed did not restore hunger or thirst
+labels: [data]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Detection uses a spell-ID table plus a locale-keyed aura-name map, so
+        this is normally a one-line data fix.
+
+  - type: input
+    id: item
+    attributes:
+      label: What did you consume?
+    validations:
+      required: true
+
+  - type: input
+    id: locale
+    attributes:
+      label: Your game locale
+      placeholder: enUS, deDE, frFR, ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: auras
+    attributes:
+      label: Output of /survivalrp debug auras
+      description: Run it WHILE eating or drinking, so the aura is active.
+      render: text
+    validations:
+      required: true

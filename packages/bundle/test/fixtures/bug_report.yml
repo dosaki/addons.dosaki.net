@@ -1,0 +1,47 @@
+name: Bug report
+description: Something is not working
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. The single most useful thing you can include is the
+        output of `/survivalrp bugreport` — it captures your version, settings,
+        state and any recorded errors, which usually makes the problem obvious
+        without any back-and-forth.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can it be reproduced?
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: report
+    attributes:
+      label: Output of /survivalrp bugreport
+      description: Run the command, copy the window, paste it here.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: errors
+    attributes:
+      label: Lua errors, if any
+      description: Turn them on with `/console scriptErrors 1` if they are hidden.
+      render: text
+    validations:
+      required: false

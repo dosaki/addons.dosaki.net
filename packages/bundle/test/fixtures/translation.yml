@@ -1,0 +1,37 @@
+name: Translation offer
+description: Help translate SurvivalRP into your language
+labels: [translation]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        SurvivalRP ships every locale the WoW client supports, but they are
+        machine-generated. Missing keys fall back to English, so even a
+        partial pass is useful.
+
+  - type: input
+    id: locale
+    attributes:
+      label: Which locale?
+      placeholder: deDE, frFR, ptBR, ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: How much would you like to take on?
+      options:
+        - Review and fix the existing machine translation
+        - Translate it properly from scratch
+        - Just report a few wrong strings
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything you want to flag?
+      description: Terms that read badly, strings that do not fit the UI, and so on.
+    validations:
+      required: false

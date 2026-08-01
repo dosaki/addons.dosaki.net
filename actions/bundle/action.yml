@@ -1,0 +1,58 @@
+name: Build addon site bundle
+description: Render an addon's README, issue templates and images into a site bundle.
+
+inputs:
+  slug:
+    description: URL segment for the addon, e.g. survivalrp
+    required: true
+  name:
+    description: Display name, e.g. SurvivalRP
+    required: true
+  tagline:
+    description: One-line description shown on the index
+    required: true
+  version:
+    description: Version being released
+    required: true
+  interface:
+    description: WoW interface number, if the addon has one
+    required: false
+  readme:
+    description: Path to the README
+    required: false
+    default: README.md
+  templates-dir:
+    description: Directory holding the issue-form templates
+    required: false
+    default: .github/ISSUE_TEMPLATE
+  out:
+    description: Path to write the bundle to
+    required: false
+    default: site-bundle.zip
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+
+    - name: Install the generator
+      shell: bash
+      working-directory: ${{ github.action_path }}/../..
+      run: npm ci
+
+    - name: Build the bundle
+      shell: bash
+      working-directory: ${{ github.action_path }}/../..
+      env:
+        INPUT_SLUG: ${{ inputs.slug }}
+        INPUT_NAME: ${{ inputs.name }}
+        INPUT_TAGLINE: ${{ inputs.tagline }}
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_INTERFACE: ${{ inputs.interface }}
+        INPUT_README: ${{ inputs.readme }}
+        INPUT_TEMPLATES-DIR: ${{ inputs.templates-dir }}
+        INPUT_OUT: ${{ github.workspace }}/${{ inputs.out }}
+      run: npx tsx packages/bundle/src/cli.ts

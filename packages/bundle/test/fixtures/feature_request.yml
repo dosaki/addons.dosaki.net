@@ -1,0 +1,33 @@
+name: Feature suggestion
+description: An idea for something SurvivalRP could do
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        SurvivalRP never touches health, movement, combat or anything that
+        affects real gameplay — suggestions that stay on the role-play side
+        of that line are the ones that can actually be built.
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like it to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: What would that let you role-play?
+      description: The story it serves usually decides how it should work.
+    validations:
+      required: false
+
+  - type: input
+    id: kind
+    attributes:
+      label: Does it apply to a particular race, class or form?
+      placeholder: e.g. Worgen, Death Knights, San'layn, everyone
+    validations:
+      required: false

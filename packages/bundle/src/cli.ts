@@ -1,0 +1,89 @@
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { buildBundle } from './bundle.js'
+import { parseForm } from './forms.js'
+import { optimiseImage } from './images.js'
+import { rewriteReadme } from './readme.js'
+import type { FormDefinition } from './types.js'
+
+export interface GenerateOptions {
+  root: string
+  slug: string
+  name: string
+  tagline: string
+  version: string
+  interfaceVersion?: string
+  readmePath: string
+  templatesDir: string
+}
+
+/** `config.yml` configures the chooser; it is not a form. */
+const NOT_A_FORM = new Set(['config.yml', 'config.yaml'])
+
+export async function generate(options: GenerateOptions): Promise<Uint8Array> {
+  const readmeSource = readFileSync(join(options.root, options.readmePath), 'utf8')
+  const { markdown, images, flattenedLinks } = rewriteReadme(readmeSource)
+
+  const forms: FormDefinition[] = readdirSync(join(options.root, options.templatesDir))
+    .filter((file) => /\.ya?ml$/i.test(file) && !NOT_A_FORM.has(file.toLowerCase()))
+    .sort()
+    .map((file) => {
+      const source = readFileSync(join(options.root, options.templatesDir, file), 'utf8')
+      return parseForm(file.replace(/\.ya?ml$/i, ''), source)
+    })
+
+  const encoded: Record<string, Uint8Array> = {}
+  for (const [path, key] of images) {
+    encoded[key] = await optimiseImage(key, readFileSync(join(options.root, path)))
+  }
+
+  if (flattenedLinks.length > 0) {
+    console.log(`Flattened ${flattenedLinks.length} repo-relative link(s): ${flattenedLinks.join(', ')}`)
+  }
+  console.log(`Bundled ${forms.length} form(s) and ${Object.keys(encoded).length} image(s).`)
+
+  return buildBundle({
+    slug: options.slug,
+    name: options.name,
+    tagline: options.tagline,
+    version: options.version,
+    interfaceVersion: options.interfaceVersion,
+    readme: markdown,
+    forms,
+    images: encoded,
+  })
+}
+
+function required(key: string): string {
+  const value = process.env[`INPUT_${key}`]
+  if (value === undefined || value === '') throw new Error(`Missing input: ${key}`)
+  return value
+}
+
+function optional(key: string, fallback: string): string {
+  const value = process.env[`INPUT_${key}`]
+  return value === undefined || value === '' ? fallback : value
+}
+
+async function main(): Promise<void> {
+  const out = optional('OUT', 'site-bundle.zip')
+  const zip = await generate({
+    root: process.env['GITHUB_WORKSPACE'] ?? process.cwd(),
+    slug: required('SLUG'),
+    name: required('NAME'),
+    tagline: required('TAGLINE'),
+    version: required('VERSION'),
+    interfaceVersion: process.env['INPUT_INTERFACE'] || undefined,
+    readmePath: optional('README', 'README.md'),
+    templatesDir: optional('TEMPLATES-DIR', '.github/ISSUE_TEMPLATE'),
+  })
+  writeFileSync(out, zip)
+  console.log(`Wrote ${out} (${Math.round(zip.byteLength / 1024)} KB)`)
+}
+
+if (process.argv[1]?.endsWith('cli.ts') || process.argv[1]?.endsWith('cli.js')) {
+  main().catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : String(error))
+    process.exit(1)
+  })
+}
