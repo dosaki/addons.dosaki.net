@@ -62,7 +62,7 @@ export function reportListPage(addon: AddonPage): string {
       : `<div class="cards">${addon.forms
           .map(
             (f) => `<a class="card" href="/${esc(addon.slug)}/report/${esc(f.key)}">
-<h2>${esc(f.name)}</h2><p>${esc(f.description)}</p></a>`,
+<div><h2>${esc(f.name)}</h2><p>${esc(f.description)}</p></div></a>`,
           )
           .join('')}</div>
 <p class="hint">No account needed - reports go straight to the developer.</p>`
