@@ -1,3 +1,4 @@
+import { clientBundle } from './client-bundle.js'
 import {
   addonPage,
   indexPage,
@@ -75,6 +76,19 @@ export function route(site: SiteData, method: string, path: string): Response | 
   if (method !== 'GET' && method !== 'HEAD') return methodNotAllowed('GET, HEAD')
 
   if (parts.length === 0) return html(200, indexPage(site.addons, site.unavailable))
+
+  if (clean === '/static/form.js') {
+    return {
+      statusCode: 200,
+      headers: {
+        'content-type': 'text/javascript; charset=utf-8',
+        // Not version-scoped, so it must revalidate rather than cache forever.
+        'cache-control': 'public, max-age=300',
+      },
+      body: clientBundle,
+      isBase64Encoded: false,
+    }
+  }
 
   if (parts[0] === 'assets') {
     // /assets/:slug/:version/:file

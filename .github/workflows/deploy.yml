@@ -69,6 +69,12 @@ jobs:
             --bundle --platform=node --target=node22 --format=esm \
             --banner:js="import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" \
             --outfile=dist/pkg/index.mjs
+          # The React island. --format=iife, not esm: it is loaded with a plain
+          # <script defer>, and a module script would need type="module".
+          # --platform=browser so no Node shims are pulled in.
+          npx esbuild packages/site/client/form.tsx \
+            --bundle --platform=browser --target=es2020 --format=iife \
+            --minify --outfile=dist/pkg/form.js
           # Read at runtime via import.meta.dirname, which is /var/task in Lambda.
           cp packages/site/src/site-data.json dist/pkg/
           cd dist/pkg && zip -qr ../lambda.zip .
