@@ -140,6 +140,12 @@ describe('reportFormPage', () => {
   it('renders every field server-side, so it works without the script', () => {
     expect(reportFormPage(withForms, aForm)).toContain('<textarea')
   })
+
+  it('warns a visitor without JavaScript before they fill anything in', () => {
+    const html = reportFormPage(withForms, aForm)
+    expect(html).toContain('<noscript>')
+    expect(html.indexOf('<noscript>')).toBeLessThan(html.indexOf('<form'))
+  })
 })
 
 describe('the rest of the site stays script-free', () => {

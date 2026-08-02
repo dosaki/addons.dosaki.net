@@ -81,6 +81,7 @@ export function reportFormPage(addon: AddonPage, form: FormDefinition): string {
 <p class="crumb"><a href="/${esc(addon.slug)}/report">&larr; All reports</a></p>
 <h1 class="page">${esc(form.name)}</h1>
 <div id="form-root">
+<noscript><div class="problems">Sending a report needs JavaScript enabled - the site signs your submission before forwarding it. Sorry; you can also report on GitHub directly if you have an account.</div></noscript>
 <form action="/api/issue" method="post">
 <input type="hidden" name="slug" value="${esc(addon.slug)}">
 <input type="hidden" name="form" value="${esc(form.key)}">

@@ -2,6 +2,17 @@ import { createRoot } from 'react-dom/client'
 import { StrictMode, useState } from 'react'
 import { collect, type Entry } from './collect.js'
 
+/**
+ * CloudFront's OAC signs origin requests with SigV4, whose signature covers a
+ * hash of the body. CloudFront does not compute it - the viewer must supply
+ * it, or the origin rejects the request with a 403 signature mismatch.
+ * crypto.subtle needs a secure context; the site is HTTPS-only.
+ */
+async function sha256Hex(body: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body))
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
 function entriesOf(form: HTMLFormElement): Entry[] {
   return Array.from(form.elements)
     .filter((el): el is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement =>
@@ -24,15 +35,19 @@ function Status({ form }: { form: HTMLFormElement }) {
     setProblems([])
     setSending(true)
     const data = new FormData(form)
-    void fetch('/api/issue', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        slug: String(data.get('slug') ?? ''),
-        form: String(data.get('form') ?? ''),
-        fields: collect(entriesOf(form)),
-      }),
+    const payload = JSON.stringify({
+      slug: String(data.get('slug') ?? ''),
+      form: String(data.get('form') ?? ''),
+      fields: collect(entriesOf(form)),
     })
+    void sha256Hex(payload)
+      .then((hash) =>
+        fetch('/api/issue', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-amz-content-sha256': hash },
+          body: payload,
+        }),
+      )
       .then(async (res) => {
         const payload = (await res.json()) as { number?: number; errors?: string[] }
         if (res.status === 201 && payload.number !== undefined) {
