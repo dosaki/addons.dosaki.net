@@ -50,7 +50,18 @@ nav.toc a:hover { color: var(--bright); }
 main { flex: 1; min-width: 0; }
 main h1, main h2, main h3 { color: var(--bright); line-height: 1.3; }
 main h2 { margin-top: 38px; padding-top: 6px; border-top: 1px solid var(--line); }
-main img { max-width: 100%; height: auto; border-radius: 6px; display: block; margin: 16px 0; }
+main img { max-width: 100%; border-radius: 6px; display: block; margin: 16px 0; }
+/* Screenshots carry no dimensions - keep their aspect ratio and fit the column. */
+main img:not([height]) { height: auto; }
+/* An explicit height in a README is the author's intent, so let the attribute
+   through by setting no height here at all; width: auto keeps the aspect
+   ratio - unless width is ALSO explicit, which is equally the author's
+   intent and must pass through untouched too, exactly the override this
+   rule exists to avoid on height. max-width above still stops either case
+   overflowing a narrow column. */
+main img[height]:not([width]) { width: auto; }
+/* display: block ignores the parent's text-align, so centre it properly. */
+main [align="center"] img { margin-inline: auto; }
 main table { border-collapse: collapse; width: 100%; margin: 16px 0; display: block; overflow-x: auto; }
 main th, main td { border: 1px solid var(--line); padding: 8px 11px; text-align: left; }
 main th { background: var(--panel); color: var(--bright); }
