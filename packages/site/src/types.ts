@@ -32,3 +32,6 @@ export interface SiteData {
   /** Slugs whose bundle could not be read; shown on the index as unavailable. */
   unavailable: string[]
 }
+
+/** A route the router cannot answer alone because it needs a GitHub call. */
+export type Deferred = { kind: 'download'; slug: string } | { kind: 'issue' }

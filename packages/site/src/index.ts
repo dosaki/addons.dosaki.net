@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { buildSite } from './build.js'
 import { appJwt, downloadRedirect, installationToken } from './github.js'
-import { route } from './handler.js'
+import { isDeferred, route } from './handler.js'
 import type { FunctionUrlEvent, Response } from './handler.js'
 import type { SiteData } from './types.js'
 
@@ -47,15 +47,8 @@ async function githubToken(): Promise<string> {
   return token
 }
 
-export async function handler(event: FunctionUrlEvent): Promise<Response> {
-  const method = event.requestContext?.http?.method ?? 'GET'
-  const path = event.rawPath ?? '/'
-
-  const answered = route(site, method, path)
-  if (answered !== null) return answered
-
-  // Only /:slug/download reaches here, and route() already checked the slug.
-  const slug = path.split('/').filter((p) => p !== '')[0]!
+async function download(slug: string): Promise<Response> {
+  // route() already checked the slug exists before deferring here.
   const repo = REPOS.get(slug)!
   try {
     const location = await downloadRedirect(repo, await githubToken())
@@ -74,4 +67,25 @@ export async function handler(event: FunctionUrlEvent): Promise<Response> {
       isBase64Encoded: false,
     }
   }
+}
+
+// Stub: Task 5 files the GitHub issue. Answering 501 here rather than
+// pretending this works keeps a half-wired POST /api/issue honest.
+function fileIssue(_event: FunctionUrlEvent): Promise<Response> {
+  return Promise.resolve({
+    statusCode: 501,
+    headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
+    body: 'Not implemented yet.',
+    isBase64Encoded: false,
+  })
+}
+
+export async function handler(event: FunctionUrlEvent): Promise<Response> {
+  const method = event.requestContext?.http?.method ?? 'GET'
+  const path = event.rawPath ?? '/'
+
+  const result = route(site, method, path)
+  if (!isDeferred(result)) return result
+  if (result.kind === 'download') return download(result.slug)
+  return fileIssue(event)
 }

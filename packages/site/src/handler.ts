@@ -1,5 +1,12 @@
-import { addonPage, indexPage, methodNotAllowedPage, notFoundPage } from './templates.js'
-import type { AddonPage, SiteData } from './types.js'
+import {
+  addonPage,
+  indexPage,
+  methodNotAllowedPage,
+  notFoundPage,
+  reportFormPage,
+  reportListPage,
+} from './templates.js'
+import type { AddonPage, Deferred, SiteData } from './types.js'
 
 export interface Response {
   statusCode: number
@@ -34,22 +41,34 @@ function find(site: SiteData, slug: string): AddonPage | undefined {
   return site.addons.find((a) => a.slug === slug)
 }
 
-/**
- * Returns null ONLY for routes that need a GitHub call; the caller handles
- * those. Everything else is answered from memory.
- */
-export function route(site: SiteData, method: string, path: string): Response | null {
-  if (method !== 'GET' && method !== 'HEAD') {
-    return {
-      statusCode: 405,
-      headers: { ...HTML, allow: 'GET, HEAD' },
-      body: methodNotAllowedPage(),
-      isBase64Encoded: false,
-    }
+function methodNotAllowed(): Response {
+  return {
+    statusCode: 405,
+    headers: { ...HTML, allow: 'GET, HEAD' },
+    body: methodNotAllowedPage(),
+    isBase64Encoded: false,
   }
+}
 
+/** True for a route the router cannot answer alone because it needs a GitHub call. */
+export function isDeferred(r: Response | Deferred): r is Deferred {
+  return 'kind' in r
+}
+
+/**
+ * Returns a Deferred ONLY for routes that need a GitHub call; the caller
+ * handles those. Everything else is answered from memory.
+ */
+export function route(site: SiteData, method: string, path: string): Response | Deferred {
   const clean = path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path
   const parts = clean.split('/').filter((p) => p !== '')
+
+  if (clean === '/api/issue') {
+    if (method !== 'POST') return methodNotAllowed()
+    return { kind: 'issue' }
+  }
+
+  if (method !== 'GET' && method !== 'HEAD') return methodNotAllowed()
 
   if (parts.length === 0) return html(200, indexPage(site.addons, site.unavailable))
 
@@ -85,7 +104,18 @@ export function route(site: SiteData, method: string, path: string): Response | 
   if (parts.length === 2 && parts[1] === 'download') {
     // 404 an unknown slug here rather than spending a GitHub call on it.
     if (find(site, parts[0]!) === undefined) return html(404, notFoundPage(site.addons))
-    return null
+    return { kind: 'download', slug: parts[0]! }
+  }
+
+  if (parts.length === 2 && parts[1] === 'report') {
+    const addon = find(site, parts[0]!)
+    if (addon !== undefined) return html(200, reportListPage(addon))
+  }
+
+  if (parts.length === 3 && parts[1] === 'report') {
+    const addon = find(site, parts[0]!)
+    const form = addon?.forms.find((f) => f.key === parts[2])
+    if (addon !== undefined && form !== undefined) return html(200, reportFormPage(addon, form))
   }
 
   if (parts.length === 1) {
