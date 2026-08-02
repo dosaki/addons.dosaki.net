@@ -174,4 +174,13 @@ describe('route', () => {
     expect(r.statusCode).toBe(405)
     expect(r.headers['allow']).toBe('GET, HEAD')
   })
+
+  it('serves the marcellus font base64-encoded and cached forever', () => {
+    const r = route(site, 'GET', '/static/marcellus.woff2') as Response
+    expect(r.statusCode).toBe(200)
+    expect(r.headers['content-type']).toBe('font/woff2')
+    expect(r.headers['cache-control']).toBe('public, max-age=31536000, immutable')
+    expect(r.isBase64Encoded).toBe(true)
+    expect(r.body.startsWith('d09GMg')).toBe(true)
+  })
 })
