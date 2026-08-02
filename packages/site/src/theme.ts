@@ -63,4 +63,29 @@ footer.site { border-top: 1px solid var(--line); padding: 22px 0 40px; color: va
   .cols { display: block; }
   nav.toc { position: static; width: auto; margin-bottom: 24px; }
 }
+.page { font-size: 24px; color: var(--bright); margin: 26px 0 6px; }
+.crumb { margin: 22px 0 0; font-size: 13px; }
+.field { margin: 22px 0; }
+.field label { display: block; color: var(--bright); font-weight: 600; margin-bottom: 5px; }
+.field .opt { color: var(--dim); font-weight: 400; font-size: 12px; }
+.field .hint { color: var(--dim); font-size: 13px; margin: 0 0 7px; }
+.field input[type=text], .field textarea, .field select {
+  width: 100%; background: var(--panel); color: var(--text);
+  border: 1px solid var(--line); border-radius: 6px; padding: 9px 11px;
+  font: inherit;
+}
+.field textarea.mono { font-family: var(--mono); font-size: 13px; }
+.field input:focus, .field textarea:focus, .field select:focus {
+  outline: 2px solid var(--accent); outline-offset: -1px;
+}
+.field label.check { font-weight: 400; display: flex; gap: 8px; align-items: center; }
+fieldset.field { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; }
+fieldset.field legend { color: var(--bright); font-weight: 600; padding: 0 6px; }
+.intro { background: var(--panel); border-left: 3px solid var(--accent);
+  padding: 11px 14px; border-radius: 0 6px 6px 0; color: var(--dim); margin: 18px 0; }
+.dl.ghost { background: none; color: var(--accent); border: 1px solid var(--line); }
+.problems { background: #2a1416; border: 1px solid #5c2b30; border-radius: 6px;
+  padding: 11px 14px; margin: 18px 0; color: #f3b0b6; }
+.sent { background: #12211a; border: 1px solid #2d6a4f; border-radius: 6px;
+  padding: 16px; color: #b7e4c7; }
 `

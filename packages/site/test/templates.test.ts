@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { addonPage, assetUrl, indexPage, notFoundPage } from '../src/templates.js'
-import type { AddonPage } from '../src/types.js'
+import { addonPage, assetUrl, indexPage, notFoundPage, reportFormPage, reportListPage } from '../src/templates.js'
+import type { AddonPage, FormDefinition } from '../src/types.js'
 
 const addon: AddonPage = {
   slug: 'survivalrp',
@@ -90,5 +90,66 @@ describe('indexPage', () => {
 describe('notFoundPage', () => {
   it('lists the addons that do exist', () => {
     expect(notFoundPage([addon])).toContain('href="/survivalrp"')
+  })
+})
+
+const aForm: FormDefinition = {
+  key: 'bug_report', name: 'Bug report', description: 'Something is not working',
+  labels: ['bug'],
+  fields: [{ type: 'textarea', id: 'what', label: 'What happened?', required: true }],
+}
+const withForms = { ...addon, forms: [aForm] }
+
+describe('reportListPage', () => {
+  it('links each form by key', () => {
+    const html = reportListPage(withForms)
+    expect(html).toContain('href="/survivalrp/report/bug_report"')
+    expect(html).toContain('Bug report')
+    expect(html).toContain('Something is not working')
+  })
+
+  it('says so plainly when an addon publishes no forms', () => {
+    expect(reportListPage({ ...addon, forms: [] }).toLowerCase()).toContain('not accepting')
+  })
+
+  it('reassures that no account is needed', () => {
+    expect(reportListPage(withForms).toLowerCase()).toContain('no github account')
+  })
+})
+
+describe('reportFormPage', () => {
+  it('posts to the api route', () => {
+    const html = reportFormPage(withForms, aForm)
+    expect(html).toContain('action="/api/issue"')
+    expect(html).toContain('method="post"')
+  })
+
+  it('carries the slug and form key so a no-JS post still identifies itself', () => {
+    const html = reportFormPage(withForms, aForm)
+    expect(html).toContain('name="slug" value="survivalrp"')
+    expect(html).toContain('name="form" value="bug_report"')
+  })
+
+  it('mounts the island and loads exactly one script', () => {
+    const html = reportFormPage(withForms, aForm)
+    expect(html).toContain('id="form-root"')
+    expect((html.match(/<script/g) ?? []).length).toBe(1)
+    expect(html).toContain('/static/form.js')
+  })
+
+  it('renders every field server-side, so it works without the script', () => {
+    expect(reportFormPage(withForms, aForm)).toContain('<textarea')
+  })
+})
+
+describe('the rest of the site stays script-free', () => {
+  it('addon page has no script', () => {
+    expect(addonPage(withForms)).not.toContain('<script')
+  })
+  it('index has no script', () => {
+    expect(indexPage([withForms], [])).not.toContain('<script')
+  })
+  it('form list has no script', () => {
+    expect(reportListPage(withForms)).not.toContain('<script')
   })
 })

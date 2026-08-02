@@ -1,20 +1,13 @@
+import { fieldsHtml } from './forms-html.js'
+import { esc } from './html.js'
 import { THEME_CSS } from './theme.js'
-import type { AddonPage, Heading } from './types.js'
+import type { AddonPage, FormDefinition, Heading } from './types.js'
 
-export { THEME_CSS }
+export { THEME_CSS, esc }
 
 /** Version-scoped, so the URL can never change meaning and is cached forever. */
 export function assetUrl(slug: string, version: string, key: string): string {
   return `/assets/${slug}/${version}/${key}`
-}
-
-/** Everything interpolated into HTML goes through this. Bundles are data, not trusted markup. */
-export function esc(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
 }
 
 function shell(title: string, body: string): string {
@@ -46,6 +39,7 @@ function siteHeader(addon: AddonPage): string {
   return `<header class="site"><div class="wrap"><div class="row">
 ${icon}
 <div><h1>${esc(addon.name)}</h1><p>${esc(addon.tagline)}</p></div>
+<a class="dl ghost" href="/${esc(addon.slug)}/report">Report</a>
 <a class="dl" href="/${esc(addon.slug)}/download">Download<small>version ${esc(addon.version)}</small></a>
 </div></div></header>`
 }
@@ -58,6 +52,44 @@ export function addonPage(addon: AddonPage): string {
 ${tocList(addon.headings)}
 <main>${addon.html}</main>
 </div></div>`,
+  )
+}
+
+export function reportListPage(addon: AddonPage): string {
+  const body =
+    addon.forms.length === 0
+      ? `<p>${esc(addon.name)} is not accepting reports through this site.</p>`
+      : `<div class="cards">${addon.forms
+          .map(
+            (f) => `<a class="card" href="/${esc(addon.slug)}/report/${esc(f.key)}">
+<h2>${esc(f.name)}</h2><p>${esc(f.description)}</p></a>`,
+          )
+          .join('')}</div>
+<p class="hint">No GitHub account needed - reports are filed for you.</p>`
+
+  return shell(
+    `Report - ${addon.name}`,
+    `${siteHeader(addon)}<div class="wrap"><h1 class="page">Report a problem</h1>${body}</div>`,
+  )
+}
+
+export function reportFormPage(addon: AddonPage, form: FormDefinition): string {
+  return shell(
+    `${form.name} - ${addon.name}`,
+    `${siteHeader(addon)}
+<div class="wrap">
+<p class="crumb"><a href="/${esc(addon.slug)}/report">&larr; All reports</a></p>
+<h1 class="page">${esc(form.name)}</h1>
+<div id="form-root">
+<form action="/api/issue" method="post">
+<input type="hidden" name="slug" value="${esc(addon.slug)}">
+<input type="hidden" name="form" value="${esc(form.key)}">
+${fieldsHtml(form)}
+<button type="submit" class="dl">Send report</button>
+</form>
+</div>
+<script src="/static/form.js" defer></script>
+</div>`,
   )
 }
 
