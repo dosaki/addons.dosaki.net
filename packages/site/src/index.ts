@@ -17,7 +17,10 @@ const baked = JSON.parse(
 const REPOS = new Map(baked.map((e) => [e.slug, e.repo]))
 
 const site: SiteData = buildSite(
-  baked.map((e) => ({ slug: e.slug, zip: Buffer.from(e.bundle, 'base64') })),
+  baked.map((e) => ({
+    slug: e.slug,
+    zip: e.bundle === '' ? null : Buffer.from(e.bundle, 'base64'),
+  })),
 )
 
 let cachedToken: { value: string; expires: number } | null = null

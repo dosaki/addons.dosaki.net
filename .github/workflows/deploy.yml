@@ -1,0 +1,87 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  repository_dispatch:
+    types: [addon-released]
+  schedule:
+    # Hourly, so a missed repository_dispatch self-heals rather than leaving
+    # the site stale until someone notices.
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - run: npm ci
+
+      - run: npm test
+
+      - name: Mint a token for the addon repositories
+        id: apptoken
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.ADDONS_APP_ID }}
+          private-key: ${{ secrets.ADDONS_APP_PRIVATE_KEY }}
+          owner: dosaki
+
+      - name: Bake the bundles into the package
+        env:
+          GH_TOKEN: ${{ steps.apptoken.outputs.token }}
+        run: npx tsx scripts/bake.ts
+
+      - name: Verify the baked data is loadable
+        run: |
+          node -e "
+            const d = JSON.parse(require('fs').readFileSync('packages/site/src/site-data.json','utf8'));
+            if (!Array.isArray(d)) throw new Error('site-data.json is not an array');
+            for (const e of d) {
+              if (typeof e.slug !== 'string' || typeof e.repo !== 'string' || typeof e.bundle !== 'string') {
+                throw new Error('malformed entry: ' + JSON.stringify(e).slice(0, 120));
+              }
+            }
+            console.log('site-data.json OK,', d.length, 'addon(s)');
+          "
+
+      - name: Build the deployment package
+        run: |
+          mkdir -p dist/pkg
+          # The Lambda runtime cannot execute .ts, so the deploy bundles to one
+          # ESM file. This is not a committed build output - it is produced here
+          # and thrown away, so it can never go stale against source.
+          npx esbuild packages/site/src/index.ts \
+            --bundle --platform=node --target=node22 --format=esm \
+            --outfile=dist/pkg/index.mjs
+          # Read at runtime via import.meta.dirname, which is /var/task in Lambda.
+          cp packages/site/src/site-data.json dist/pkg/
+          cd dist/pkg && zip -qr ../lambda.zip .
+          ls -lh ../lambda.zip
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+
+      - name: Apply
+        working-directory: infra
+        run: |
+          terraform init
+          terraform apply -auto-approve \
+            -var app_installation_id=${{ secrets.ADDONS_APP_INSTALLATION_ID }}
