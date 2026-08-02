@@ -94,9 +94,8 @@ export function route(site: SiteData, method: string, path: string): Response | 
     // /assets/:slug/:version/:file
     if (parts.length !== 4) return html(404, notFoundPage(site.addons))
     const addon = find(site, parts[1]!)
-    if (addon === undefined || addon.version !== parts[2]) {
-      return html(404, notFoundPage(site.addons))
-    }
+    if (addon === undefined) return html(404, notFoundPage(site.addons))
+
     let key: string
     try {
       key = decodeURIComponent(parts[3]!)
@@ -104,6 +103,26 @@ export function route(site: SiteData, method: string, path: string): Response | 
       // A malformed percent-sequence is a bad request, not a server fault.
       return html(404, notFoundPage(site.addons))
     }
+
+    if (parts[2] === 'latest') {
+      // The site bakes exactly one bundle per addon, so "latest" is simply
+      // its current version - no resolution logic, no ambiguity. This is a
+      // REDIRECT, never a served body: the alias's meaning changes on every
+      // release, so it must revalidate often while the versioned target it
+      // points at stays immutable.
+      if (!addon.assets.has(key)) return html(404, notFoundPage(site.addons))
+      return {
+        statusCode: 302,
+        headers: {
+          location: `/assets/${addon.slug}/${addon.version}/${parts[3]}`,
+          'cache-control': 'public, max-age=300',
+        },
+        body: '',
+        isBase64Encoded: false,
+      }
+    }
+
+    if (addon.version !== parts[2]) return html(404, notFoundPage(site.addons))
     const bytes = addon.assets.get(key)
     if (bytes === undefined) return html(404, notFoundPage(site.addons))
 

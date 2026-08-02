@@ -67,6 +67,39 @@ describe('route', () => {
     )
   })
 
+  it('redirects a latest asset to its version-scoped url', () => {
+    const r = route(site, 'GET', '/assets/survivalrp/latest/tab-dm.webp') as Response
+    expect(r.statusCode).toBe(302)
+    expect(r.headers['location']).toBe('/assets/survivalrp/1.2.2/tab-dm.webp')
+  })
+
+  it('does not let the latest alias be cached like an immutable asset', () => {
+    const r = route(site, 'GET', '/assets/survivalrp/latest/tab-dm.webp') as Response
+    expect(r.headers['cache-control']).not.toContain('immutable')
+    expect(r.headers['cache-control']).toContain('max-age=300')
+  })
+
+  it('still serves an exact version immutably', () => {
+    const r = route(site, 'GET', '/assets/survivalrp/1.2.2/tab-dm.webp') as Response
+    expect(r.statusCode).toBe(200)
+    expect(r.headers['cache-control']).toContain('immutable')
+  })
+
+  it('404s a latest asset the bundle does not carry', () => {
+    expect((route(site, 'GET', '/assets/survivalrp/latest/nope.webp') as Response).statusCode).toBe(
+      404,
+    )
+  })
+
+  it('404s a latest asset for an unknown addon', () => {
+    expect((route(site, 'GET', '/assets/nope/latest/tab-dm.webp') as Response).statusCode).toBe(404)
+  })
+
+  it('404s a malformed percent-sequence under latest, rather than throwing', () => {
+    expect(() => route(site, 'GET', '/assets/survivalrp/latest/%zz')).not.toThrow()
+    expect((route(site, 'GET', '/assets/survivalrp/latest/%zz') as Response).statusCode).toBe(404)
+  })
+
   it('404s an unknown slug and lists what exists', () => {
     const r = route(site, 'GET', '/nope') as Response
     expect(r.statusCode).toBe(404)
