@@ -18,3 +18,10 @@ Two values are set out of band and are never in state or in git:
 The ACM certificate is a data source. It already exists in us-east-1, covers
 `*.dosaki.net`, and is shared with the other dosaki.net sites - this stack must
 not manage or replace it.
+
+The distribution uses `PriceClass_All` rather than the cheaper `PriceClass_100`
+(North America and Europe only) on purpose: the audience is WoW role-players
+worldwide, and Oceania in particular has a substantial RP community.
+CloudFront's perpetual free tier (1 TB egress, 10M requests) applies
+regardless of price class, so at this site's traffic the wider reach costs
+nothing - a deliberate choice, not a default nobody considered.

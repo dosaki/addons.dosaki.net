@@ -26,6 +26,9 @@ function str(value: unknown, field: string): string {
 const SLUG = /^[a-z0-9][a-z0-9-]*$/
 const VERSION = /^[A-Za-z0-9][A-Za-z0-9._+-]*$/
 
+/** Would collide with the /assets/* cache behaviour and route prefix. */
+const RESERVED_SLUGS = new Set(['assets', 'api'])
+
 /**
  * These reach the page inside href/src attributes. The templates HTML-escape
  * them, which stops injection but not malformed URLs, and by then there is no
@@ -37,6 +40,10 @@ function safe(value: string, pattern: RegExp, field: string): string {
 }
 
 export function loadBundle(slug: string, zip: Uint8Array): AddonPage {
+  if (RESERVED_SLUGS.has(slug)) {
+    throw new Error(`${slug}: slug is reserved`)
+  }
+
   const files = unzipSync(zip)
 
   const manifestRaw = files['manifest.json']

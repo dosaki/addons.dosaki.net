@@ -72,6 +72,10 @@ describe('loadBundle', () => {
   it('refuses a version that would produce a malformed URL', () => {
     expect(() => loadBundle('survivalrp', bundle({ version: '1.0 beta' }))).toThrow(/not URL-safe/)
   })
+
+  it('refuses a slug that would collide with a reserved route prefix', () => {
+    expect(() => loadBundle('assets', bundle())).toThrow(/reserved/)
+  })
 })
 
 describe('buildSite', () => {

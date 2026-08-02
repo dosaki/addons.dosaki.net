@@ -115,6 +115,18 @@ resource "aws_lambda_permission" "cloudfront" {
   function_url_auth_type = "AWS_IAM"
 }
 
+# Lambda's "Dual Auth" rollout requires BOTH grants for a CloudFront OAC origin.
+# The single-permission form works only until 2026-11-01, after which the origin
+# returns 403 - a failure dated months after the config that causes it.
+resource "aws_lambda_permission" "cloudfront_invoke" {
+  statement_id           = "AllowCloudFrontInvoke"
+  action                 = "lambda:InvokeFunction"
+  function_name          = aws_lambda_function.site.function_name
+  principal              = "cloudfront.amazonaws.com"
+  source_arn             = aws_cloudfront_distribution.site.arn
+  function_url_auth_type = "AWS_IAM"
+}
+
 locals {
   origin_id   = "lambda-url"
   origin_host = replace(replace(aws_lambda_function_url.site.function_url, "https://", ""), "/", "")
@@ -125,7 +137,7 @@ resource "aws_cloudfront_distribution" "site" {
   is_ipv6_enabled = true
   aliases         = [var.domain]
   comment         = "addons.dosaki.net"
-  price_class     = "PriceClass_100"
+  price_class     = "PriceClass_All"
 
   origin {
     domain_name              = local.origin_host
