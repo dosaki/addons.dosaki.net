@@ -88,6 +88,50 @@ describe('issueBody', () => {
   })
 })
 
+const checks: FormDefinition = {
+  key: 'c', name: 'Checks', description: '', labels: [],
+  fields: [{
+    type: 'checkboxes', id: 'agree', label: 'Confirm', required: false,
+    checkboxes: [{ label: 'I searched existing issues', required: true },
+                 { label: 'I am on the latest version', required: false }],
+  }],
+}
+
+describe('checkboxes', () => {
+  it('rejects a required checkbox option left unticked', () => {
+    expect(validateSubmission(checks, { agree: '' }))
+      .toEqual(['"I searched existing issues" must be ticked'])
+  })
+
+  it('accepts once the required option is ticked', () => {
+    expect(validateSubmission(checks, { agree: 'I searched existing issues' })).toEqual([])
+  })
+
+  it('renders every checkbox option with its state, as GitHub does', () => {
+    const body = issueBody(checks, { agree: 'I searched existing issues' })
+    expect(body).toContain('- [X] I searched existing issues')
+    expect(body).toContain('- [ ] I am on the latest version')
+  })
+})
+
+describe('multi-select dropdown', () => {
+  it('comma-joins a multi-select dropdown, as GitHub does', () => {
+    const multi: FormDefinition = {
+      key: 'm', name: 'M', description: '', labels: [],
+      fields: [{ type: 'dropdown', id: 'd', label: 'D', options: ['A', 'B', 'C'], multiple: true, required: false }],
+    }
+    expect(issueBody(multi, { d: 'A\nC' })).toContain('### D\n\nA, C')
+  })
+})
+
+describe('title bound', () => {
+  it('never exceeds the title bound, whatever the form is called', () => {
+    const long = { ...checks, name: 'A'.repeat(90) }
+    expect(issueTitle(long, {}).length).toBeLessThanOrEqual(70)
+    expect(issueTitle(long, { agree: 'x' }).length).toBeLessThanOrEqual(70)
+  })
+})
+
 describe('validateSubmission', () => {
   it('accepts a complete submission', () => {
     expect(validateSubmission(form, { what: 'It broke' })).toEqual([])
