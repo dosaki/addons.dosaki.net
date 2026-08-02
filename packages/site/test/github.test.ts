@@ -1,6 +1,6 @@
 import { createPrivateKey, generateKeyPairSync, createVerify } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import { appJwt, downloadRedirect } from '../src/github.js'
+import { appJwt, createIssue, downloadRedirect } from '../src/github.js'
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
 const pem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
@@ -83,5 +83,26 @@ describe('downloadRedirect', () => {
       { status: 200 },
     ])
     await expect(downloadRedirect('dosaki/survivalrp', 'tok', impl)).rejects.toThrow(/expected a redirect/)
+  })
+})
+
+describe('createIssue', () => {
+  it('posts title, body and labels and returns the number', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const impl = (async (url: string, init?: RequestInit) => {
+      calls.push({ url, init })
+      return { ok: true, status: 201, json: async () => ({ number: 42 }), text: async () => '' } as unknown as globalThis.Response
+    }) as unknown as typeof fetch
+
+    const n = await createIssue('dosaki/x', 'tok', { title: 'T', body: 'B', labels: ['bug'] }, impl)
+    expect(n).toBe(42)
+    expect(calls[0]!.url).toContain('/repos/dosaki/x/issues')
+    expect(JSON.parse(String(calls[0]!.init!.body))).toEqual({ title: 'T', body: 'B', labels: ['bug'] })
+  })
+
+  it('throws with the status when GitHub refuses', async () => {
+    const impl = (async () => ({ ok: false, status: 410, text: async () => 'Issues are disabled' } as unknown as globalThis.Response)) as unknown as typeof fetch
+    await expect(createIssue('dosaki/x', 'tok', { title: 'T', body: 'B', labels: [] }, impl))
+      .rejects.toThrow(/410/)
   })
 })

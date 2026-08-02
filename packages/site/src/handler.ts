@@ -19,6 +19,9 @@ export interface Response {
 export interface FunctionUrlEvent {
   rawPath?: string
   requestContext?: { http?: { method?: string } }
+  headers?: Record<string, string>
+  body?: string
+  isBase64Encoded?: boolean
 }
 
 const HTML = { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }

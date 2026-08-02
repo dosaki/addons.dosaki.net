@@ -72,3 +72,29 @@ export async function downloadRedirect(
   if (location === null) throw new Error(`${repo}: expected a redirect, got ${asset.status}`)
   return location
 }
+
+export interface NewIssue {
+  title: string
+  body: string
+  labels: string[]
+}
+
+export async function createIssue(
+  repo: string,
+  token: string,
+  issue: NewIssue,
+  fetchImpl: typeof fetch = fetch,
+): Promise<number> {
+  const res = await fetchImpl(`${API}/repos/${repo}/issues`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${token}`,
+      accept: 'application/vnd.github+json',
+      'content-type': 'application/json',
+      'user-agent': UA,
+    },
+    body: JSON.stringify(issue),
+  })
+  if (!res.ok) throw new Error(`create issue failed: ${res.status} ${await res.text()}`)
+  return ((await res.json()) as { number: number }).number
+}
