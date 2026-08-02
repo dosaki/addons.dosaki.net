@@ -10,6 +10,7 @@ const addon: AddonPage = {
   icon: 'icon.svg',
   html: '<h2 id="a">A</h2>',
   headings: [{ id: 'a', text: 'A' }],
+  forms: [],
   assets: new Map<string, Uint8Array>([
     ['tab-dm.webp', new Uint8Array([1, 2, 3])],
     ['icon.svg', new Uint8Array([60, 115, 118, 103, 47, 62])],

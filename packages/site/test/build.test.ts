@@ -9,7 +9,22 @@ const readme = readFileSync(
   'utf8',
 )
 
-function bundle(over: Record<string, unknown> = {}): Uint8Array {
+const BUG_REPORT = {
+  key: 'bug_report',
+  name: 'Bug report',
+  description: 'Something is not working',
+  labels: ['bug'],
+  fields: [
+    { type: 'markdown', required: false, value: 'Thanks for reporting.' },
+    { type: 'textarea', id: 'what', label: 'What happened?', required: true },
+    { type: 'input', id: 'kind', label: 'Which race?', required: false },
+  ],
+}
+
+function bundle(
+  over: Record<string, unknown> = {},
+  formsJson = JSON.stringify([BUG_REPORT]),
+): Uint8Array {
   const manifest = {
     schemaVersion: 1,
     slug: 'survivalrp',
@@ -23,7 +38,7 @@ function bundle(over: Record<string, unknown> = {}): Uint8Array {
   return zipSync({
     'manifest.json': strToU8(JSON.stringify(manifest)),
     'readme.md': strToU8(readme),
-    'forms.json': strToU8('[]'),
+    'forms.json': strToU8(formsJson),
     'images/icon.svg': strToU8('<svg/>'),
     'images/tab-dm.webp': new Uint8Array([1, 2, 3]),
   })
@@ -75,6 +90,22 @@ describe('loadBundle', () => {
 
   it('refuses a slug that would collide with a reserved route prefix', () => {
     expect(() => loadBundle('assets', bundle())).toThrow(/reserved/)
+  })
+
+  it('carries the addon forms out of the bundle', () => {
+    const page = loadBundle('survivalrp', bundle())
+    expect(page.forms.map((f) => f.key)).toEqual(['bug_report'])
+    expect(page.forms[0]!.fields.find((f) => f.id === 'what')?.required).toBe(true)
+  })
+
+  it('tolerates a bundle with no forms rather than failing the addon', () => {
+    const page = loadBundle('survivalrp', bundle({}, '[]'))
+    expect(page.forms).toEqual([])
+  })
+
+  it('refuses a bundle whose forms.json is not an array', () => {
+    expect(() => loadBundle('survivalrp', bundle({}, '{"nope":true}')))
+      .toThrow(/forms\.json/)
   })
 })
 

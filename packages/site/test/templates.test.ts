@@ -13,6 +13,7 @@ const addon: AddonPage = {
     { id: 'what-it-does', text: 'What it does' },
     { id: 'privacy', text: 'Privacy' },
   ],
+  forms: [],
   assets: new Map(),
 }
 

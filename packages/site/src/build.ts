@@ -1,6 +1,6 @@
 import { strFromU8, unzipSync } from 'fflate'
 import { renderReadme } from './render.js'
-import type { AddonPage, SiteData } from './types.js'
+import type { AddonPage, FormDefinition, SiteData } from './types.js'
 
 /**
  * The compatibility seam. A bundle from a newer generator is skipped rather
@@ -61,6 +61,14 @@ export function loadBundle(slug: string, zip: Uint8Array): AddonPage {
   if (readmeRaw === undefined) throw new Error(`${slug}: bundle has no readme.md`)
   const { html, headings } = renderReadme(strFromU8(readmeRaw))
 
+  const formsRaw = files['forms.json']
+  let forms: FormDefinition[] = []
+  if (formsRaw !== undefined) {
+    const parsed: unknown = JSON.parse(strFromU8(formsRaw))
+    if (!Array.isArray(parsed)) throw new Error(`${slug}: forms.json is not an array`)
+    forms = parsed as FormDefinition[]
+  }
+
   const assets = new Map<string, Uint8Array>()
   for (const [path, bytes] of Object.entries(files)) {
     if (path.startsWith('images/')) assets.set(path.slice('images/'.length), bytes)
@@ -77,6 +85,7 @@ export function loadBundle(slug: string, zip: Uint8Array): AddonPage {
     icon,
     html,
     headings,
+    forms,
     assets,
   }
 }

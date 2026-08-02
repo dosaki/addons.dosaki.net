@@ -1,3 +1,7 @@
+import type { FormDefinition } from '../../bundle/src/types.js'
+
+export type { FormDefinition, FormField, FieldType, CheckboxOption } from '../../bundle/src/types.js'
+
 export interface Heading {
   id: string
   text: string
@@ -17,6 +21,8 @@ export interface AddonPage {
   icon?: string
   html: string
   headings: Heading[]
+  /** Issue templates the addon publishes, rendered as forms at /:slug/report. */
+  forms: FormDefinition[]
   /** Bundle key -> raw bytes, served from /assets/:slug/:version/:key */
   assets: Map<string, Uint8Array>
 }
