@@ -141,7 +141,7 @@ a.card:hover {
 .card.off { opacity: .55; }
 footer.site {
   position: relative; text-align: center; border-top: 1px solid var(--line-soft);
-  padding: 22px 0 40px; color: #5c6a80; font-size: 13px;
+  padding: 22px 0 40px; color: var(--dim); font-size: 13px;
 }
 footer.site::before {
   content: ""; position: absolute; top: -4px; left: 50%; width: 8px; height: 8px;
@@ -168,7 +168,7 @@ footer.site::before {
 }
 .field textarea.mono { font-family: var(--mono); font-size: 13px; }
 .field input:focus, .field textarea:focus, .field select:focus {
-  outline: none; border-color: var(--accent); box-shadow: 0 0 12px var(--glow);
+  outline: 2px solid transparent; border-color: var(--accent); box-shadow: 0 0 12px var(--glow);
 }
 .field label.check { font-weight: 400; display: flex; gap: 8px; align-items: center; }
 fieldset.field { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; }
