@@ -61,8 +61,13 @@ jobs:
           # The Lambda runtime cannot execute .ts, so the deploy bundles to one
           # ESM file. This is not a committed build output - it is produced here
           # and thrown away, so it can never go stale against source.
+          # The AWS SDK is CommonJS and requires node built-ins internally. An ESM
+          # bundle has no require, so without this shim the Lambda dies at init
+          # with "Dynamic require of node:https is not supported" and every route
+          # 502s. Do not remove.
           npx esbuild packages/site/src/index.ts \
             --bundle --platform=node --target=node22 --format=esm \
+            --banner:js="import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" \
             --outfile=dist/pkg/index.mjs
           # Read at runtime via import.meta.dirname, which is /var/task in Lambda.
           cp packages/site/src/site-data.json dist/pkg/
