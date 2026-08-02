@@ -134,7 +134,12 @@ describe('reportListPage', () => {
   })
 
   it('reassures that no account is needed', () => {
-    expect(reportListPage(withForms).toLowerCase()).toContain('no github account')
+    expect(reportListPage(withForms).toLowerCase()).toContain('no account needed')
+  })
+
+  it('never mentions GitHub - users need not know where reports land', () => {
+    expect(reportListPage(withForms).toLowerCase()).not.toContain('github')
+    expect(reportFormPage(withForms, aForm).toLowerCase()).not.toContain('github')
   })
 })
 

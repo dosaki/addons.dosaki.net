@@ -65,7 +65,7 @@ export function reportListPage(addon: AddonPage): string {
 <h2>${esc(f.name)}</h2><p>${esc(f.description)}</p></a>`,
           )
           .join('')}</div>
-<p class="hint">No GitHub account needed - reports are filed for you.</p>`
+<p class="hint">No account needed - reports go straight to the developer.</p>`
 
   return shell(
     `Report - ${addon.name}`,
@@ -81,7 +81,7 @@ export function reportFormPage(addon: AddonPage, form: FormDefinition): string {
 <p class="crumb"><a href="/${esc(addon.slug)}/report">&larr; All reports</a></p>
 <h1 class="page">${esc(form.name)}</h1>
 <div id="form-root">
-<noscript><div class="problems">Sending a report needs JavaScript enabled - the site signs your submission before forwarding it. Sorry; you can also report on GitHub directly if you have an account.</div></noscript>
+<noscript><div class="problems">Sending a report needs JavaScript enabled - the site signs your submission before forwarding it.</div></noscript>
 <form action="/api/issue" method="post">
 <input type="hidden" name="slug" value="${esc(addon.slug)}">
 <input type="hidden" name="form" value="${esc(form.key)}">

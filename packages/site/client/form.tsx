@@ -65,7 +65,7 @@ function Status({ form }: { form: HTMLFormElement }) {
   if (number !== null) {
     return (
       <div className="sent">
-        <strong>Thank you - your report has been filed as #{number}.</strong>
+        <strong>Thank you - your report has been filed. Your report number is {number}.</strong>
         <p>There is nothing else you need to do.</p>
       </div>
     )
