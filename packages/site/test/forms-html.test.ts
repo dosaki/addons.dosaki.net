@@ -18,8 +18,8 @@ describe('fieldsHtml', () => {
     const html = fieldsHtml(form([{ type: 'input', id: 'locale', label: 'Which locale?', required: true }]))
     expect(html).toContain('<input')
     expect(html).toContain('name="locale"')
-    expect(html).toContain('for="f-locale"')
-    expect(html).toContain('id="f-locale"')
+    expect(html).toContain('for="f0-locale"')
+    expect(html).toContain('id="f0-locale"')
   })
 
   it('marks a required field required, and an optional one optional', () => {
@@ -27,8 +27,8 @@ describe('fieldsHtml', () => {
       { type: 'input', id: 'a', label: 'A', required: true },
       { type: 'input', id: 'b', label: 'B', required: false },
     ]))
-    expect(html).toMatch(/id="f-a"[^>]*required/)
-    expect(html).not.toMatch(/id="f-b"[^>]*required/)
+    expect(html).toMatch(/id="f0-a"[^>]*required/)
+    expect(html).not.toMatch(/id="f1-b"[^>]*required/)
     expect(html).toContain('optional')
   })
 
@@ -64,5 +64,25 @@ describe('fieldsHtml', () => {
   it('renders a placeholder when the template supplies one', () => {
     const html = fieldsHtml(form([{ type: 'input', id: 'l', label: 'L', placeholder: 'enUS, deDE', required: false }]))
     expect(html).toContain('placeholder="enUS, deDE"')
+  })
+
+  it('cannot collide ids between a checkbox group and a similarly named field', () => {
+    const html = fieldsHtml(form([
+      { type: 'checkboxes', id: 'x', label: 'X', required: false,
+        checkboxes: [{ label: 'One', required: false }, { label: 'Two', required: false }] },
+      { type: 'input', id: 'x-0', label: 'Also X', required: false },
+    ]))
+    const ids = [...html.matchAll(/id="([^"]+)"/g)].map((m) => m[1]!)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('still names fields by their template id, which is what the POST carries', () => {
+    const html = fieldsHtml(form([{ type: 'input', id: 'locale', label: 'L', required: false }]))
+    expect(html).toContain('name="locale"')
+  })
+
+  it('omits the blank option in a multi-select, where an empty row is meaningless', () => {
+    const html = fieldsHtml(form([{ type: 'dropdown', id: 's', label: 'S', options: ['One'], multiple: true, required: false }]))
+    expect(html).not.toContain('<option value=""></option>')
   })
 })
