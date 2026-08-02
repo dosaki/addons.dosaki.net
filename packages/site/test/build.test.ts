@@ -107,6 +107,16 @@ describe('loadBundle', () => {
     expect(() => loadBundle('survivalrp', bundle({}, '{"nope":true}')))
       .toThrow(/forms\.json/)
   })
+
+  it('refuses a forms.json entry that is not an object', () => {
+    expect(() => loadBundle('survivalrp', bundle({}, '[null]')))
+      .toThrow(/malformed entry/)
+  })
+
+  it('refuses a form missing its fields array', () => {
+    expect(() => loadBundle('survivalrp', bundle({}, '[{"key":"x","name":"X"}]')))
+      .toThrow(/malformed entry/)
+  })
 })
 
 describe('buildSite', () => {
@@ -135,5 +145,14 @@ describe('buildSite', () => {
     const site = buildSite([{ slug: 'bad slug', zip: bundle() }])
     expect(site.addons).toEqual([])
     expect(site.unavailable).toEqual(['bad slug'])
+  })
+
+  it('marks the addon unavailable rather than failing the site', () => {
+    const site = buildSite([
+      { slug: 'good', zip: bundle() },
+      { slug: 'broken', zip: bundle({}, '[null]') },
+    ])
+    expect(site.addons.map((a) => a.slug)).toEqual(['good'])
+    expect(site.unavailable).toEqual(['broken'])
   })
 })

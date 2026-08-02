@@ -39,6 +39,18 @@ function safe(value: string, pattern: RegExp, field: string): string {
   return value
 }
 
+/**
+ * Deliberately shallow: key/name/fields present and of the right kind. Not
+ * full schema validation - the bundle comes from our own generator over an
+ * authenticated channel, so the goal is only to fail at this boundary rather
+ * than three modules later when something renders a malformed entry.
+ */
+function isForm(value: unknown): value is FormDefinition {
+  if (value === null || typeof value !== 'object') return false
+  const f = value as Record<string, unknown>
+  return typeof f['key'] === 'string' && typeof f['name'] === 'string' && Array.isArray(f['fields'])
+}
+
 export function loadBundle(slug: string, zip: Uint8Array): AddonPage {
   if (RESERVED_SLUGS.has(slug)) {
     throw new Error(`${slug}: slug is reserved`)
@@ -66,7 +78,10 @@ export function loadBundle(slug: string, zip: Uint8Array): AddonPage {
   if (formsRaw !== undefined) {
     const parsed: unknown = JSON.parse(strFromU8(formsRaw))
     if (!Array.isArray(parsed)) throw new Error(`${slug}: forms.json is not an array`)
-    forms = parsed as FormDefinition[]
+    // Checked rather than cast: an unchecked entry would survive to whatever
+    // renders it and become a 500, instead of marking this addon unavailable.
+    if (!parsed.every(isForm)) throw new Error(`${slug}: forms.json has a malformed entry`)
+    forms = parsed
   }
 
   const assets = new Map<string, Uint8Array>()
