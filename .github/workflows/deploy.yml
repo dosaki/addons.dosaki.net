@@ -77,6 +77,8 @@ jobs:
             --minify --outfile=dist/pkg/form.js
           # Read at runtime via import.meta.dirname, which is /var/task in Lambda.
           cp packages/site/src/site-data.json dist/pkg/
+          # Read at runtime by font.ts, same pattern as site-data.json above.
+          cp packages/site/static/marcellus-latin.woff2 dist/pkg/
           cd dist/pkg && zip -qr ../lambda.zip .
           ls -lh ../lambda.zip
 

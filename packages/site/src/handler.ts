@@ -1,4 +1,5 @@
 import { clientBundle } from './client-bundle.js'
+import { marcellusFont } from './font.js'
 import {
   addonPage,
   indexPage,
@@ -87,6 +88,17 @@ export function route(site: SiteData, method: string, path: string): Response | 
       },
       body: clientBundle,
       isBase64Encoded: false,
+    }
+  }
+
+  if (clean === '/static/marcellus.woff2') {
+    // Never changes without being renamed, so it can cache forever.
+    if (marcellusFont === null) return html(404, notFoundPage(site.addons))
+    return {
+      statusCode: 200,
+      headers: { 'content-type': 'font/woff2', 'cache-control': IMMUTABLE },
+      body: marcellusFont,
+      isBase64Encoded: true,
     }
   }
 
