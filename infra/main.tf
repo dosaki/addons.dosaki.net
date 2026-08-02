@@ -176,6 +176,36 @@ resource "aws_cloudfront_distribution" "site" {
     cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
   }
 
+  # POST is rejected at the edge by the default behaviour, which allows only
+  # GET/HEAD/OPTIONS - verified live during 2a. CloudFront offers exactly three
+  # method sets, so allowing POST means allowing all seven; route() answers 405
+  # for anything but GET and HEAD, which is the right place for that decision.
+  #
+  # AllViewerExceptHostHeader is mandatory, not a preference: POST needs the
+  # viewer's content-type forwarded, but forwarding the viewer's Host breaks
+  # OAC's SigV4 signature, which covers Host and expects the Function URL's own.
+  ordered_cache_behavior {
+    path_pattern             = "/api/*"
+    target_origin_id         = local.origin_id
+    viewer_protocol_policy   = "https-only"
+    allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods           = ["GET", "HEAD"]
+    cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+    origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+    compress                 = false
+  }
+
+  ordered_cache_behavior {
+    path_pattern           = "/static/*"
+    target_origin_id       = local.origin_id
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+    # Managed-CachingOptimized
+    cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+  }
+
   # A signed download URL is short-lived; a cached 302 would hand out a dead link.
   ordered_cache_behavior {
     path_pattern           = "/*/download"
