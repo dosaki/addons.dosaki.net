@@ -1,0 +1,88 @@
+import type { FormDefinition, FormField } from './types.js'
+
+/** GitHub's own issue-body limit is 65536; leave room for the footer. */
+export const MAX_BODY_BYTES = 61440
+export const MAX_FIELD_CHARS = 8000
+export const TITLE_MAX = 70
+
+const FOOTER = '_Filed via addons.dosaki.net_'
+
+/** markdown blocks are prose in the form, never an answer. */
+function answerable(form: FormDefinition): FormField[] {
+  return form.fields.filter((f) => f.type !== 'markdown' && f.id !== undefined)
+}
+
+function clean(value: string | undefined): string {
+  return (value ?? '').trim()
+}
+
+/**
+ * No shipped template carries a `title:`, and the obvious fallback - the first
+ * required answer - gives "deDE" for a translation offer and a truncated
+ * paragraph for a bug report. Naming the form first fixes both.
+ */
+export function issueTitle(form: FormDefinition, fields: Record<string, string>): string {
+  const first = answerable(form).find((f) => f.required)
+  const answer = clean(first?.id === undefined ? '' : fields[first.id]).replace(/\s+/g, ' ')
+
+  if (form.titlePrefix !== undefined && form.titlePrefix !== '') {
+    return `${form.titlePrefix}${answer}`.slice(0, TITLE_MAX)
+  }
+  if (answer === '') return form.name
+
+  const prefix = `${form.name}: `
+  const room = TITLE_MAX - prefix.length
+  if (answer.length <= room) return prefix + answer
+
+  const cut = answer.slice(0, room - 1)
+  const boundary = cut.lastIndexOf(' ')
+  return prefix + (boundary > room / 2 ? cut.slice(0, boundary) : cut).trimEnd() + '…'
+}
+
+/** The section shape GitHub's own issue forms produce, so both paths match. */
+export function issueBody(form: FormDefinition, fields: Record<string, string>): string {
+  const sections = answerable(form).map((field) => {
+    const label = field.label ?? field.id ?? ''
+    const value = clean(fields[field.id!])
+    if (value === '') return `### ${label}\n\n_No response_`
+    if (field.render !== undefined && field.render !== '') {
+      return `### ${label}\n\n\`\`\`${field.render}\n${value}\n\`\`\``
+    }
+    return `### ${label}\n\n${value}`
+  })
+
+  return `${sections.join('\n\n')}\n\n${FOOTER}\n`
+}
+
+export function validateSubmission(
+  form: FormDefinition,
+  fields: Record<string, string>,
+): string[] {
+  const problems: string[] = []
+
+  for (const field of answerable(form)) {
+    const label = field.label ?? field.id ?? ''
+    const value = clean(fields[field.id!])
+
+    if (field.required && value === '') {
+      problems.push(`${label} is required`)
+      continue
+    }
+    if (value.length > MAX_FIELD_CHARS) {
+      problems.push(`${label} is too long (limit ${MAX_FIELD_CHARS} characters)`)
+      continue
+    }
+    if (field.type === 'dropdown' && value !== '' && field.options !== undefined) {
+      const chosen = field.multiple === true ? value.split('\n').map((v) => v.trim()) : [value]
+      if (chosen.some((c) => !field.options!.includes(c))) {
+        problems.push(`${label} is not one of the offered options`)
+      }
+    }
+  }
+
+  if (Buffer.byteLength(issueBody(form, fields), 'utf8') > MAX_BODY_BYTES) {
+    problems.push('The whole report is too long')
+  }
+
+  return problems
+}
