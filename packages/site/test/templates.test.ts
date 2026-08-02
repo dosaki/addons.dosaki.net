@@ -29,6 +29,12 @@ describe('addonPage', () => {
     expect(addonPage(addon)).toContain('What it does')
   })
 
+  it('carries a copyright line for Dosaki in the footer', () => {
+    const year = new Date().getUTCFullYear()
+    expect(addonPage(addon)).toContain(`&copy; ${year} Dosaki`)
+    expect(indexPage([addon], [])).toContain(`&copy; ${year} Dosaki`)
+  })
+
   it('builds a contents link per heading', () => {
     const html = addonPage(addon)
     expect(html).toContain('href="#what-it-does"')

@@ -19,7 +19,7 @@ function shell(title: string, body: string): string {
 <style>${THEME_CSS}</style>
 </head><body>
 ${body}
-<footer class="site"><div class="wrap">addons.dosaki.net</div></footer>
+<footer class="site"><div class="wrap">addons.dosaki.net &middot; &copy; ${new Date().getUTCFullYear()} Dosaki</div></footer>
 </body></html>`
 }
 
