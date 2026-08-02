@@ -37,9 +37,9 @@ function siteHeader(addon: AddonPage): string {
       ? ''
       : `<img class="icon" src="${esc(assetUrl(addon.slug, addon.version, addon.icon))}" alt="">`
   return `<header class="site"><div class="wrap"><div class="row">
-${icon}
-<div><h1>${esc(addon.name)}</h1><p>${esc(addon.tagline)}</p></div>
-<a class="dl ghost" href="/${esc(addon.slug)}/report">Report</a>
+<a class="logo" href="/${esc(addon.slug)}">${icon}<h1>${esc(addon.name)}</h1></a>
+<div><p>${esc(addon.tagline)}</p></div>
+<a class="dl ghost" href="/${esc(addon.slug)}/report">Report an Issue</a>
 <a class="dl" href="/${esc(addon.slug)}/download">Download<small>version ${esc(addon.version)}</small></a>
 </div></div></header>`
 }

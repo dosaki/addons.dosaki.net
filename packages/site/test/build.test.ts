@@ -9,6 +9,19 @@ const readme = readFileSync(
   'utf8',
 )
 
+// Every LOCAL image the fixture README references (an https:// one, like the
+// build-status badge, is deliberately left out - it is not a bundle key and
+// must never become one), so the fixture bundle can carry all of them: a
+// bundle() that omitted one would leave that reference unresolvable, exactly
+// the defect this suite guards against.
+const README_IMAGES = [
+  ...new Set(
+    [...readme.matchAll(/!\[[^\]]*\]\(([^)\s]+)\)/g), ...readme.matchAll(/<img\b[^>]*\bsrc="([^"]+)"/g)]
+      .map((m) => m[1]!)
+      .filter((target) => !/^https?:\/\//i.test(target)),
+  ),
+]
+
 const BUG_REPORT = {
   key: 'bug_report',
   name: 'Bug report',
@@ -32,15 +45,18 @@ function bundle(
     tagline: 'Optional survival mechanics for role-play.',
     version: '1.2.2',
     icon: 'icon.svg',
-    images: ['icon.svg', 'tab-dm.webp'],
+    images: README_IMAGES,
     ...over,
+  }
+  const images: Record<string, Uint8Array> = {}
+  for (const key of README_IMAGES) {
+    images[`images/${key}`] = key === 'icon.svg' ? strToU8('<svg/>') : new Uint8Array([1, 2, 3])
   }
   return zipSync({
     'manifest.json': strToU8(JSON.stringify(manifest)),
     'readme.md': strToU8(readme),
     'forms.json': strToU8(formsJson),
-    'images/icon.svg': strToU8('<svg/>'),
-    'images/tab-dm.webp': new Uint8Array([1, 2, 3]),
+    ...images,
   })
 }
 
@@ -101,6 +117,28 @@ describe('loadBundle', () => {
   it('tolerates a bundle with no forms rather than failing the addon', () => {
     const page = loadBundle('survivalrp', bundle({}, '[]'))
     expect(page.forms).toEqual([])
+  })
+
+  it('resolves README image references to version-scoped asset urls', () => {
+    const page = loadBundle('survivalrp', bundle())
+    expect(page.html).toContain('src="/assets/survivalrp/1.2.2/tab-dm.webp"')
+    expect(page.html).not.toContain('src="tab-dm.webp"')
+  })
+
+  it('leaves an external image alone', () => {
+    // an https:// src is not a bundle key, so it must pass through untouched
+    const page = loadBundle('survivalrp', bundle())
+    expect(page.html).toContain('src="https://img.shields.io/badge/build-passing-brightgreen.svg"')
+    expect(page.html).not.toContain('/assets/survivalrp/1.2.2/https:')
+  })
+
+  it('leaves no unresolvable image reference anywhere in the page', () => {
+    const page = loadBundle('survivalrp', bundle())
+    const srcs = [...page.html.matchAll(/src="([^"]+)"/g)].map((m) => m[1]!)
+    const unresolvable = srcs.filter(
+      (s) => !s.startsWith('/assets/') && !/^https?:\/\//.test(s) && !s.startsWith('data:'),
+    )
+    expect(unresolvable).toEqual([])
   })
 
   it('refuses a bundle whose forms.json is not an array', () => {

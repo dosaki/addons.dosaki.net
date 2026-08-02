@@ -23,6 +23,11 @@ header.site .row { display: flex; align-items: center; gap: 14px; }
 header.site img.icon { width: 44px; height: 44px; border-radius: 8px; }
 header.site h1 { margin: 0; font-size: 22px; color: var(--bright); }
 header.site p { margin: 2px 0 0; color: var(--dim); font-size: 14px; }
+header.site a.logo {
+  display: flex; align-items: center; gap: 14px;
+  color: var(--bright); text-decoration: none;
+}
+header.site a.logo:hover { text-decoration: none; }
 .dl {
   margin-left: auto; background: var(--accent); color: #08111f;
   border-radius: 6px; padding: 9px 16px; font-weight: 650; font-size: 14px;

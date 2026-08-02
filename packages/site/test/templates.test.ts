@@ -47,6 +47,15 @@ describe('addonPage', () => {
     expect(addonPage(addon)).toContain('/assets/survivalrp/1.2.2/icon.svg')
   })
 
+  it('links the header icon and name back to the addon page', () => {
+    const html = addonPage(addon)
+    expect(html).toContain('href="/survivalrp"')
+  })
+
+  it('says "Report an Issue" on the report button', () => {
+    expect(addonPage(addon)).toContain('Report an Issue')
+  })
+
   it('omits the icon element entirely when the addon has none', () => {
     const { icon, ...rest } = addon
     const html = addonPage(rest as AddonPage)

@@ -11,6 +11,8 @@ None of it affects real gameplay, but the addon is affected by real gameplay.
 
 SurvivalRP never affects your health, movement, combat, stats, or any protected action. If your character starves, nothing happens mechanically - you simply look starving to other people running the addon.
 
+![Build status](https://img.shields.io/badge/build-passing-brightgreen.svg)
+
 ---
 
 ## What it does

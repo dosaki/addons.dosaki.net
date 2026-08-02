@@ -91,18 +91,37 @@ export function loadBundle(slug: string, zip: Uint8Array): AddonPage {
 
   const icon = typeof manifest.icon === 'string' ? manifest.icon : undefined
 
+  const safeSlug = safe(slug, SLUG, 'slug')
+  const safeVersion = safe(str(manifest.version, 'version'), VERSION, 'version')
+
   return {
     // The caller's slug wins: it is what the URL routes on, and addons.yml owns it.
-    slug: safe(slug, SLUG, 'slug'),
+    slug: safeSlug,
     name: str(manifest.name, 'name'),
     tagline: str(manifest.tagline, 'tagline'),
-    version: safe(str(manifest.version, 'version'), VERSION, 'version'),
+    version: safeVersion,
     icon,
-    html,
+    html: resolveAssetUrls(html, safeSlug, safeVersion, assets),
     headings,
     forms,
     assets,
   }
+}
+
+/**
+ * rewriteReadme leaves bare bundle keys so the SITE owns URL shape. This is
+ * where that shape is applied. Only keys the bundle actually carries are
+ * rewritten, so external URLs and anything unrecognised are left untouched.
+ */
+function resolveAssetUrls(
+  html: string,
+  slug: string,
+  version: string,
+  assets: Map<string, Uint8Array>,
+): string {
+  return html.replace(/src="([^"]+)"/g, (match, ref: string) =>
+    assets.has(ref) ? `src="/assets/${slug}/${version}/${ref}"` : match,
+  )
 }
 
 export function buildSite(
