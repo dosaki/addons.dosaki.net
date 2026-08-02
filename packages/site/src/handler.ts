@@ -41,10 +41,11 @@ function find(site: SiteData, slug: string): AddonPage | undefined {
   return site.addons.find((a) => a.slug === slug)
 }
 
-function methodNotAllowed(): Response {
+/** `Allow` must name what THIS resource accepts, not what pages accept. */
+function methodNotAllowed(allow: string): Response {
   return {
     statusCode: 405,
-    headers: { ...HTML, allow: 'GET, HEAD' },
+    headers: { ...HTML, allow },
     body: methodNotAllowedPage(),
     isBase64Encoded: false,
   }
@@ -64,11 +65,11 @@ export function route(site: SiteData, method: string, path: string): Response | 
   const parts = clean.split('/').filter((p) => p !== '')
 
   if (clean === '/api/issue') {
-    if (method !== 'POST') return methodNotAllowed()
+    if (method !== 'POST') return methodNotAllowed('POST')
     return { kind: 'issue' }
   }
 
-  if (method !== 'GET' && method !== 'HEAD') return methodNotAllowed()
+  if (method !== 'GET' && method !== 'HEAD') return methodNotAllowed('GET, HEAD')
 
   if (parts.length === 0) return html(200, indexPage(site.addons, site.unavailable))
 

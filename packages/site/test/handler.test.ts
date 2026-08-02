@@ -130,11 +130,15 @@ describe('route', () => {
     expect(route(site, 'POST', '/api/issue')).toEqual({ kind: 'issue' })
   })
 
-  it('still 405s a POST to a page route', () => {
-    expect((route(site, 'POST', '/survivalrp') as Response).statusCode).toBe(405)
+  it('405s a GET to the api route, advertising POST', () => {
+    const r = route(site, 'GET', '/api/issue') as Response
+    expect(r.statusCode).toBe(405)
+    expect(r.headers['allow']).toBe('POST')
   })
 
-  it('405s a GET to the api route', () => {
-    expect((route(site, 'GET', '/api/issue') as Response).statusCode).toBe(405)
+  it('405s a POST to a page route, advertising GET and HEAD', () => {
+    const r = route(site, 'POST', '/survivalrp') as Response
+    expect(r.statusCode).toBe(405)
+    expect(r.headers['allow']).toBe('GET, HEAD')
   })
 })
