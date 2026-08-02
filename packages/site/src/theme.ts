@@ -59,7 +59,12 @@ main pre { background: var(--panel); padding: 14px; border-radius: 6px; overflow
 main pre code { background: none; padding: 0; }
 main blockquote { border-left: 3px solid var(--line); margin: 16px 0; padding: 2px 0 2px 16px; color: var(--dim); }
 .cards { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); padding: 28px 0; }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px; }
+.card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 18px; display: flex; align-items: center; gap: 14px;
+}
+.card img.icon { width: 40px; height: 40px; border-radius: 8px; flex: none; }
+.card > div { min-width: 0; }
 .card h2 { margin: 0 0 6px; font-size: 18px; color: var(--bright); }
 .card p { margin: 0; color: var(--dim); font-size: 14px; }
 .card.off { opacity: .55; }

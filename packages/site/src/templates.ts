@@ -95,14 +95,22 @@ ${fieldsHtml(form)}
 }
 
 function card(addon: AddonPage): string {
+  // Omitted, not a placeholder, when the addon has none - same choice
+  // siteHeader already makes for its icon, and it costs nothing here: the
+  // card is a flex row, so dropping the <img> just leaves the text to fill
+  // it rather than leaving a gap or a broken image.
+  const icon =
+    addon.icon === undefined
+      ? ''
+      : `<img class="icon" src="${esc(assetUrl(addon.slug, addon.version, addon.icon))}" alt="" loading="eager">`
   return `<a class="card" href="/${esc(addon.slug)}">
-<h2>${esc(addon.name)}</h2><p>${esc(addon.tagline)}</p></a>`
+${icon}<div><h2>${esc(addon.name)}</h2><p>${esc(addon.tagline)}</p></div></a>`
 }
 
 export function indexPage(addons: AddonPage[], unavailable: string[]): string {
   const cards = addons.map(card).join('')
   const broken = unavailable
-    .map((slug) => `<div class="card off"><h2>${esc(slug)}</h2><p>Temporarily unavailable.</p></div>`)
+    .map((slug) => `<div class="card off"><div><h2>${esc(slug)}</h2><p>Temporarily unavailable.</p></div></div>`)
     .join('')
   return shell(
     'addons.dosaki.net',

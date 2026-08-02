@@ -94,6 +94,18 @@ describe('indexPage', () => {
     expect(html).toContain('brokenaddon')
     expect(html.toLowerCase()).toContain('unavailable')
   })
+
+  it('shows the addon logo on its index card', () => {
+    const html = indexPage([addon], [])
+    expect(html).toContain('/assets/survivalrp/1.2.2/icon.svg')
+  })
+
+  it('renders a card without an icon cleanly', () => {
+    const { icon, ...rest } = addon
+    const html = indexPage([rest as AddonPage], [])
+    expect(html).not.toContain('/assets/survivalrp/1.2.2/undefined')
+    expect(html).toContain('SurvivalRP')
+  })
 })
 
 describe('notFoundPage', () => {
