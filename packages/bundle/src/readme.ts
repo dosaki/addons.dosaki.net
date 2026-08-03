@@ -24,6 +24,15 @@ const RESIDUAL_MARKDOWN_IMAGE = /!\[[^\]]*\]\(([^)]*)\)/g
 const RESIDUAL_IMG_SRC = /<img\b[^>]*?(?:^|\s)src\s*=\s*(["'])([^"']*)\1/gi
 const RESIDUAL_REFERENCE_DEF = /^[ \t]*\[[^\]]+\]:\s*(\S+)/gm
 
+export interface RewriteOptions {
+  /**
+   * Absolute URL prefix for rewritten image targets, e.g.
+   * `https://addons.dosaki.net/assets/survivalrp/latest/`. The bundle's own
+   * README omits it and refers to images by bare key.
+   */
+  imageBase?: string
+}
+
 export interface ReadmeResult {
   markdown: string
   /** repo-relative source path -> bundle key */
@@ -85,7 +94,8 @@ function findResidualImages(markdown: string): string[] {
   return [...found]
 }
 
-export function rewriteReadme(source: string): ReadmeResult {
+export function rewriteReadme(source: string, options: RewriteOptions = {}): ReadmeResult {
+  const prefix = options.imageBase ?? ''
   const images = new Map<string, string>()
   const byKey = new Map<string, string>()
   const flattenedLinks: string[] = []
@@ -110,13 +120,13 @@ export function rewriteReadme(source: string): ReadmeResult {
   let markdown = source.replace(
     MARKDOWN_IMAGE,
     (match, alt: string, target: string, title: string) =>
-      isLocal(target) && isImage(target) ? `![${alt}](${keyFor(target)}${title})` : match,
+      isLocal(target) && isImage(target) ? `![${alt}](${prefix}${keyFor(target)}${title})` : match,
   )
 
   markdown = markdown.replace(
     HTML_IMAGE,
     (match, head: string, target: string, tail: string) =>
-      isLocal(target) && isImage(target) ? `${head}${keyFor(target)}${tail}` : match,
+      isLocal(target) && isImage(target) ? `${head}${prefix}${keyFor(target)}${tail}` : match,
   )
 
   markdown = markdown.replace(MARKDOWN_LINK, (match, text: string, target: string) => {

@@ -51,6 +51,34 @@ describe('rewriteReadme', () => {
     expect(result.markdown).toContain('data-src="a.png"')
     expect(result.images.get('docs/b.png')).toBe('b.webp')
   })
+
+  it('prefixes markdown image targets with imageBase when given', () => {
+    const result = rewriteReadme('![DM tab](./docs/images/tab-dm.png)', {
+      imageBase: 'https://addons.dosaki.net/assets/survivalrp/latest/',
+    })
+    expect(result.markdown).toBe(
+      '![DM tab](https://addons.dosaki.net/assets/survivalrp/latest/tab-dm.webp)',
+    )
+    // The images map keeps bare keys - the bundle stores images by key,
+    // regardless of how the markdown refers to them.
+    expect(result.images.get('docs/images/tab-dm.png')).toBe('tab-dm.webp')
+  })
+
+  it('prefixes HTML img src with imageBase when given', () => {
+    const result = rewriteReadme('<img src="./docs/icon.svg" alt="SurvivalRP" height="256">', {
+      imageBase: 'https://addons.dosaki.net/assets/survivalrp/latest/',
+    })
+    expect(result.markdown).toContain(
+      'src="https://addons.dosaki.net/assets/survivalrp/latest/icon.svg"',
+    )
+  })
+
+  it('still flattens repo-relative links when imageBase is given', () => {
+    const result = rewriteReadme('See [LICENSE](LICENSE).', {
+      imageBase: 'https://addons.dosaki.net/assets/survivalrp/latest/',
+    })
+    expect(result.markdown).toBe('See LICENSE.')
+  })
 })
 
 describe('rewriteReadme residual scan', () => {
