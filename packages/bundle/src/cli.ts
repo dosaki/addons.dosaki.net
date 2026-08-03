@@ -24,9 +24,22 @@ const NOT_A_FORM = new Set(['config.yml', 'config.yaml'])
 const ICON_PATH = 'docs/icon.svg'
 const ICON_KEY = 'icon.svg'
 
-export async function generate(options: GenerateOptions): Promise<Uint8Array> {
+/** Public site origin; image URLs in the paste-ready README point here. */
+const SITE_BASE = 'https://addons.dosaki.net'
+
+export interface GenerateResult {
+  /** The site bundle (manifest, readme, forms, images). */
+  zip: Uint8Array
+  /** README with absolute /latest/ image URLs, for pasting onto addon pages. */
+  externalReadme: string
+}
+
+export async function generate(options: GenerateOptions): Promise<GenerateResult> {
   const readmeSource = readFileSync(join(options.root, options.readmePath), 'utf8')
   const { markdown, images, flattenedLinks } = rewriteReadme(readmeSource)
+  const { markdown: externalReadme } = rewriteReadme(readmeSource, {
+    imageBase: `${SITE_BASE}/assets/${options.slug}/latest/`,
+  })
 
   const forms: FormDefinition[] = readdirSync(join(options.root, options.templatesDir))
     .filter((file) => /\.ya?ml$/i.test(file) && !NOT_A_FORM.has(file.toLowerCase()))
@@ -54,7 +67,7 @@ export async function generate(options: GenerateOptions): Promise<Uint8Array> {
   }
   console.log(`Bundled ${forms.length} form(s) and ${Object.keys(encoded).length} image(s).`)
 
-  return buildBundle({
+  const zip = buildBundle({
     slug: options.slug,
     name: options.name,
     tagline: options.tagline,
@@ -65,6 +78,8 @@ export async function generate(options: GenerateOptions): Promise<Uint8Array> {
     forms,
     images: encoded,
   })
+
+  return { zip, externalReadme }
 }
 
 function required(key: string): string {
@@ -80,7 +95,8 @@ function optional(key: string, fallback: string): string {
 
 async function main(): Promise<void> {
   const out = optional('OUT', 'site-bundle.zip')
-  const zip = await generate({
+  const readmeOut = optional('README-OUT', 'site-readme.md')
+  const { zip, externalReadme } = await generate({
     root: process.env['GITHUB_WORKSPACE'] ?? process.cwd(),
     slug: required('SLUG'),
     name: required('NAME'),
@@ -91,7 +107,8 @@ async function main(): Promise<void> {
     templatesDir: optional('TEMPLATES-DIR', '.github/ISSUE_TEMPLATE'),
   })
   writeFileSync(out, zip)
-  console.log(`Wrote ${out} (${Math.round(zip.byteLength / 1024)} KB)`)
+  writeFileSync(readmeOut, externalReadme)
+  console.log(`Wrote ${out} (${Math.round(zip.byteLength / 1024)} KB) and ${readmeOut}`)
 }
 
 if (process.argv[1]?.endsWith('cli.ts') || process.argv[1]?.endsWith('cli.js')) {

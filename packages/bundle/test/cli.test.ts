@@ -41,17 +41,16 @@ describe('generate', () => {
     const root = fakeAddon()
     writeFileSync(join(root, 'docs', 'images', 'orphan.png'), 'not an image')
 
-    const files = unzipSync(
-      await generate({
-        root,
-        slug: 'thing',
-        name: 'Thing',
-        tagline: 'A thing.',
-        version: '1.0.0',
-        readmePath: 'README.md',
-        templatesDir: '.github/ISSUE_TEMPLATE',
-      }),
-    )
+    const { zip } = await generate({
+      root,
+      slug: 'thing',
+      name: 'Thing',
+      tagline: 'A thing.',
+      version: '1.0.0',
+      readmePath: 'README.md',
+      templatesDir: '.github/ISSUE_TEMPLATE',
+    })
+    const files = unzipSync(zip)
 
     expect(Object.keys(files)).toContain('images/shot.webp')
     expect(Object.keys(files)).not.toContain('images/orphan.png')
@@ -59,17 +58,16 @@ describe('generate', () => {
 
   it('skips config.yml, which is settings rather than a form', async () => {
     const root = fakeAddon()
-    const files = unzipSync(
-      await generate({
-        root,
-        slug: 'thing',
-        name: 'Thing',
-        tagline: 'A thing.',
-        version: '1.0.0',
-        readmePath: 'README.md',
-        templatesDir: '.github/ISSUE_TEMPLATE',
-      }),
-    )
+    const { zip } = await generate({
+      root,
+      slug: 'thing',
+      name: 'Thing',
+      tagline: 'A thing.',
+      version: '1.0.0',
+      readmePath: 'README.md',
+      templatesDir: '.github/ISSUE_TEMPLATE',
+    })
+    const files = unzipSync(zip)
     const forms = JSON.parse(strFromU8(files['forms.json']!)) as FormDefinition[]
     // Alphabetical, proving the CLI's `.sort()` ran - see the comment in
     // fakeAddon() about why the fixture files are created out of order.
@@ -78,17 +76,16 @@ describe('generate', () => {
 
   it('applies the README rewriting on the way in', async () => {
     const root = fakeAddon()
-    const files = unzipSync(
-      await generate({
-        root,
-        slug: 'thing',
-        name: 'Thing',
-        tagline: 'A thing.',
-        version: '1.0.0',
-        readmePath: 'README.md',
-        templatesDir: '.github/ISSUE_TEMPLATE',
-      }),
-    )
+    const { zip } = await generate({
+      root,
+      slug: 'thing',
+      name: 'Thing',
+      tagline: 'A thing.',
+      version: '1.0.0',
+      readmePath: 'README.md',
+      templatesDir: '.github/ISSUE_TEMPLATE',
+    })
+    const files = unzipSync(zip)
     const readme = strFromU8(files['readme.md']!)
     expect(readme).toContain('![shot](shot.webp)')
     expect(readme).toContain('See LICENSE.')
@@ -102,17 +99,16 @@ describe('generate', () => {
     writeFileSync(join(root, 'README.md'), '# Thing\n\nNo icon here.\n')
     writeFileSync(join(root, 'docs', 'icon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>')
 
-    const files = unzipSync(
-      await generate({
-        root,
-        slug: 'thing',
-        name: 'Thing',
-        tagline: 'A thing.',
-        version: '1.0.0',
-        readmePath: 'README.md',
-        templatesDir: '.github/ISSUE_TEMPLATE',
-      }),
-    )
+    const { zip } = await generate({
+      root,
+      slug: 'thing',
+      name: 'Thing',
+      tagline: 'A thing.',
+      version: '1.0.0',
+      readmePath: 'README.md',
+      templatesDir: '.github/ISSUE_TEMPLATE',
+    })
+    const files = unzipSync(zip)
 
     expect(Object.keys(files)).toContain('images/icon.svg')
     const manifest = JSON.parse(strFromU8(files['manifest.json']!)) as Manifest
@@ -124,17 +120,16 @@ describe('generate', () => {
     const root = fakeAddon()
     writeFileSync(join(root, 'README.md'), '# Thing\n\nNo icon here.\n')
 
-    const files = unzipSync(
-      await generate({
-        root,
-        slug: 'thing',
-        name: 'Thing',
-        tagline: 'A thing.',
-        version: '1.0.0',
-        readmePath: 'README.md',
-        templatesDir: '.github/ISSUE_TEMPLATE',
-      }),
-    )
+    const { zip } = await generate({
+      root,
+      slug: 'thing',
+      name: 'Thing',
+      tagline: 'A thing.',
+      version: '1.0.0',
+      readmePath: 'README.md',
+      templatesDir: '.github/ISSUE_TEMPLATE',
+    })
+    const files = unzipSync(zip)
     const manifest = JSON.parse(strFromU8(files['manifest.json']!)) as Manifest
     expect('icon' in manifest).toBe(false)
   }, 30_000)
@@ -144,18 +139,37 @@ describe('generate', () => {
     writeFileSync(join(root, 'README.md'), '# Thing\n\n<img src="./docs/icon.svg">\n')
     writeFileSync(join(root, 'docs', 'icon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>')
 
-    const files = unzipSync(
-      await generate({
-        root,
-        slug: 'thing',
-        name: 'Thing',
-        tagline: 'A thing.',
-        version: '1.0.0',
-        readmePath: 'README.md',
-        templatesDir: '.github/ISSUE_TEMPLATE',
-      }),
-    )
+    const { zip } = await generate({
+      root,
+      slug: 'thing',
+      name: 'Thing',
+      tagline: 'A thing.',
+      version: '1.0.0',
+      readmePath: 'README.md',
+      templatesDir: '.github/ISSUE_TEMPLATE',
+    })
+    const files = unzipSync(zip)
     const manifest = JSON.parse(strFromU8(files['manifest.json']!)) as Manifest
     expect(manifest.images.filter((i) => i === 'icon.svg')).toHaveLength(1)
+  }, 30_000)
+
+  it('produces a paste-ready README pointing at the site latest assets', async () => {
+    const root = fakeAddon()
+    const { zip, externalReadme } = await generate({
+      root,
+      slug: 'thing',
+      name: 'Thing',
+      tagline: 'A thing.',
+      version: '1.0.0',
+      readmePath: 'README.md',
+      templatesDir: '.github/ISSUE_TEMPLATE',
+    })
+
+    expect(externalReadme).toContain(
+      '![shot](https://addons.dosaki.net/assets/thing/latest/shot.webp)',
+    )
+    expect(externalReadme).toContain('See LICENSE.')
+    // The bundle's own readme is unchanged: bare keys, no host.
+    expect(strFromU8(unzipSync(zip)['readme.md']!)).toContain('![shot](shot.webp)')
   }, 30_000)
 })
