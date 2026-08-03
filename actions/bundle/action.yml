@@ -57,7 +57,10 @@ runs:
         INPUT_VERSION: ${{ inputs.version }}
         INPUT_INTERFACE: ${{ inputs.interface }}
         INPUT_README: ${{ inputs.readme }}
-        INPUT_TEMPLATES-DIR: ${{ inputs.templates-dir }}
+        # Underscores, not the inputs' dashes: dash-named env vars are not
+        # POSIX-legal and get dropped before they reach the CLI's process.env
+        # on Linux runners (actions/runner#2283).
+        INPUT_TEMPLATES_DIR: ${{ inputs.templates-dir }}
         INPUT_OUT: ${{ github.workspace }}/${{ inputs.out }}
-        INPUT_README-OUT: ${{ github.workspace }}/${{ inputs.readme-out }}
+        INPUT_README_OUT: ${{ github.workspace }}/${{ inputs.readme-out }}
       run: npx tsx packages/bundle/src/cli.ts
