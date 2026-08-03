@@ -95,7 +95,7 @@ function optional(key: string, fallback: string): string {
 
 async function main(): Promise<void> {
   const out = optional('OUT', 'site-bundle.zip')
-  const readmeOut = optional('README-OUT', 'site-readme.md')
+  const readmeOut = optional('README_OUT', 'site-readme.md')
   const { zip, externalReadme } = await generate({
     root: process.env['GITHUB_WORKSPACE'] ?? process.cwd(),
     slug: required('SLUG'),
@@ -104,7 +104,7 @@ async function main(): Promise<void> {
     version: required('VERSION'),
     interfaceVersion: process.env['INPUT_INTERFACE'] || undefined,
     readmePath: optional('README', 'README.md'),
-    templatesDir: optional('TEMPLATES-DIR', '.github/ISSUE_TEMPLATE'),
+    templatesDir: optional('TEMPLATES_DIR', '.github/ISSUE_TEMPLATE'),
   })
   writeFileSync(out, zip)
   writeFileSync(readmeOut, externalReadme)
