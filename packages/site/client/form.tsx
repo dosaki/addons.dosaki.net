@@ -3,6 +3,7 @@ import { StrictMode, useState } from 'react'
 import { collect, type Entry } from './collect.js'
 import { sha256Hex } from './sign.js'
 import { wireVotes } from './vote.js'
+import { wireCommentForm } from './comment.js'
 import { ensureName, prefillName } from './name.js'
 
 function entriesOf(form: HTMLFormElement): Entry[] {
@@ -86,6 +87,7 @@ if (root !== null && form !== null && form !== undefined) {
   createRoot(mount).render(<StrictMode><Status form={form} /></StrictMode>)
 }
 
-// One bundle serves both islands; on the reports page there is no #form-root,
-// only vote groups, and vice versa - each wiring is a no-op elsewhere.
+// One bundle serves three islands (form, votes, reply form); each wiring is
+// a no-op where its markup is absent.
 wireVotes()
+wireCommentForm()

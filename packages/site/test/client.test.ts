@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { collect } from '../client/collect.js'
 import { voteKey, votePayload } from '../client/vote.js'
 import { resolveSubmitName } from '../client/name.js'
+import { commentPayload } from '../client/comment.js'
 
 describe('collect', () => {
   it('joins repeated names, as a checkbox group produces', () => {
@@ -67,5 +68,17 @@ describe('resolveSubmitName', () => {
   it('treats an empty stored value as absent', () => {
     expect(resolveSubmitName('', '', generate))
       .toEqual({ name: 'Crimson Brave Otter', store: true })
+  })
+})
+
+describe('commentPayload', () => {
+  it('builds the JSON the api expects, with the issue as a number', () => {
+    expect(JSON.parse(commentPayload('survivalrp', '7', 'Nes', 'Same here', ''))).toEqual({
+      slug: 'survivalrp',
+      issue: 7,
+      name: 'Nes',
+      body: 'Same here',
+      website: '',
+    })
   })
 })
