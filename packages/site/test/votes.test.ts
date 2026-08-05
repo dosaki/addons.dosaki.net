@@ -72,6 +72,7 @@ describe('parseVoteRequest', () => {
       slug: 'survivalrp',
       issue: 7,
       direction: 'up',
+      website: '',
     })
   })
 
@@ -94,6 +95,16 @@ describe('parseVoteRequest', () => {
       const bad = JSON.stringify({ slug: 'a', issue, direction: 'up' })
       expect(() => parseVoteRequest('application/json', bad, false)).toThrow()
     }
+  })
+
+  it('defaults the honeypot field to empty when absent', () => {
+    const body = JSON.stringify({ slug: 'a', issue: 7, direction: 'up' })
+    expect(parseVoteRequest('application/json', body, false).website).toBe('')
+  })
+
+  it('carries a filled honeypot field through for the caller to judge', () => {
+    const body = JSON.stringify({ slug: 'a', issue: 7, direction: 'up', website: 'spam.example' })
+    expect(parseVoteRequest('application/json', body, false).website).toBe('spam.example')
   })
 })
 

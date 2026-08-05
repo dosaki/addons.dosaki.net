@@ -13,10 +13,16 @@ export const TITLE_MAX = 70
 export const NAME_FIELD = 'reporter-name'
 export const NAME_MAX = 80
 
+/**
+ * The hidden decoy field on every site form. Humans never see it; autofill
+ * bots fill it. Non-empty → the submission is silently dropped.
+ */
+export const HONEYPOT_FIELD = 'website'
+
 const FOOTER = '_Filed via addons.dosaki.net_'
 const FOOTER_LINE = /^_Filed via addons\.dosaki\.net(?: by (.+?))?_$/m
 
-function footer(name: string): string {
+export function footer(name: string): string {
   return name === '' ? FOOTER : `_Filed via addons.dosaki.net by ${name}_`
 }
 

@@ -1,6 +1,6 @@
 import { createPrivateKey, generateKeyPairSync, createVerify } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import { appJwt, createIssue, downloadRedirect, getIssue, listComments, listOpenIssues, setIssueBody } from '../src/github.js'
+import { appJwt, createComment, createIssue, downloadRedirect, getIssue, listComments, listOpenIssues, setIssueBody } from '../src/github.js'
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
 const pem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
@@ -231,5 +231,28 @@ describe('setIssueBody', () => {
   it('throws with the status when GitHub refuses', async () => {
     const { impl } = jsonFetch(422, {})
     await expect(setIssueBody('dosaki/x', 7, 'b', 'tok', impl)).rejects.toThrow(/422/)
+  })
+})
+
+describe('createComment', () => {
+  it('posts the comment to the issue', async () => {
+    let captured: { url: string; init: RequestInit } | null = null
+    const fetchImpl = (async (url: unknown, init?: RequestInit) => {
+      captured = { url: String(url), init: init! }
+      return new Response('{}', { status: 201 })
+    }) as typeof fetch
+
+    await createComment('dosaki/survivalrp', 7, 'Same here\n', 'tok', fetchImpl)
+
+    expect(captured!.url).toBe('https://api.github.com/repos/dosaki/survivalrp/issues/7/comments')
+    expect(captured!.init.method).toBe('POST')
+    expect(JSON.parse(String(captured!.init.body))).toEqual({ body: 'Same here\n' })
+    expect((captured!.init.headers as Record<string, string>)['authorization']).toBe('Bearer tok')
+  })
+
+  it('throws on a non-ok response', async () => {
+    const fetchImpl = (async () => new Response('nope', { status: 403 })) as typeof fetch
+    await expect(createComment('o/r', 7, 'x', 't', fetchImpl))
+      .rejects.toThrow('create comment failed: 403')
   })
 })

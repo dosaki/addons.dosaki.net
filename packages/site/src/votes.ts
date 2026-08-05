@@ -42,6 +42,8 @@ export interface VoteRequest {
   slug: string
   issue: number
   direction: Direction
+  /** Honeypot: non-empty means the hidden decoy field was filled. */
+  website: string
 }
 
 /**
@@ -67,7 +69,12 @@ export function parseVoteRequest(
   if (parsed.direction !== 'up' && parsed.direction !== 'down') {
     throw new Error('direction must be up or down')
   }
-  return { slug: parsed.slug, issue: parsed.issue, direction: parsed.direction }
+  return {
+    slug: parsed.slug,
+    issue: parsed.issue,
+    direction: parsed.direction,
+    website: typeof parsed.website === 'string' ? parsed.website : '',
+  }
 }
 
 export interface ListCache<T> {

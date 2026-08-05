@@ -121,6 +121,15 @@ function nameField(form: FormDefinition): string {
 <input type="text" id="reporter-name" name="reporter-name" maxlength="80"></div>`
 }
 
+/**
+ * Off-screen decoy: humans never see or reach it, autofill bots fill it.
+ * The server silently drops any submission where it is non-empty.
+ */
+function honeypotField(): string {
+  return `<div class="hp" aria-hidden="true"><label for="website">Website</label>
+<input type="text" id="website" name="website" tabindex="-1" autocomplete="off"></div>`
+}
+
 export interface ReportComment {
   author: string
   isDeveloper: boolean
@@ -172,6 +181,22 @@ export function reportDetailPage(addon: AddonPage, report: ReportDetail): string
 <main class="report-body">${report.html}</main>
 <h2 class="page replies-title">Replies</h2>
 ${replies}
+<h2 class="page replies-title">Add a reply</h2>
+<div id="comment-root">
+<noscript><div class="problems">Replying needs JavaScript enabled - the site signs your reply before forwarding it.</div></noscript>
+<form action="/api/comment" method="post">
+<input type="hidden" name="slug" value="${esc(addon.slug)}">
+<input type="hidden" name="issue" value="${report.number}">
+<div class="field"><label for="comment-body">Your reply</label>
+<textarea rows="4" id="comment-body" name="body" required></textarea></div>
+<div class="field"><label for="reporter-name">Name <span class="opt">optional</span></label>
+<p class="hint">so the developer knows who is replying</p>
+<input type="text" id="reporter-name" name="reporter-name" maxlength="80"></div>
+${honeypotField()}
+<button type="submit" class="dl">Send reply</button>
+</form>
+<div class="problems" id="comment-problems" hidden></div>
+</div>
 <script src="/static/form.js" defer></script>
 </div>`,
   )
@@ -191,6 +216,7 @@ export function reportFormPage(addon: AddonPage, form: FormDefinition): string {
 <input type="hidden" name="form" value="${esc(form.key)}">
 ${fieldsHtml(form)}
 ${nameField(form)}
+${honeypotField()}
 <button type="submit" class="dl">Send report</button>
 </form>
 </div>

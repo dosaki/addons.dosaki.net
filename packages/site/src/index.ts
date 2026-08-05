@@ -2,12 +2,15 @@ import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { buildSite } from './build.js'
-import { appJwt, createIssue, downloadRedirect, getIssue, installationToken, listComments, listOpenIssues, setIssueBody } from './github.js'
+import { creditName } from './names.js'
+import { appJwt, createComment, createIssue, downloadRedirect, getIssue, installationToken, listComments, listOpenIssues, setIssueBody } from './github.js'
 import { isDeferred, route } from './handler.js'
 import type { FunctionUrlEvent, Response } from './handler.js'
 import { esc, notFoundPage, reportDetailPage, reportsPage, THEME_CSS } from './templates.js'
 import type { ReportDetail, ReportItem } from './templates.js'
-import { issueBody, issueTitle, NAME_FIELD, reporterName, stripFooter, validateSubmission } from './issue.js'
+import { HONEYPOT_FIELD, issueBody, issueTitle, NAME_FIELD, reporterName, stripFooter, validateSubmission } from './issue.js'
+import { commentBody, displayName, parseCommentRequest, validateComment } from './comments.js'
+import type { CommentRequest } from './comments.js'
 import { renderIssueMarkdown } from './render.js'
 import { applyVote, makeListCache, parseVoteRequest, parseVotes, sortByVotes, stripVotesLine } from './votes.js'
 import type { SiteData } from './types.js'
@@ -144,11 +147,13 @@ async function showReport(slug: string, number: number): Promise<Response> {
       ...parseVotes(issue.body),
       html: renderIssueMarkdown(stripFooter(stripVotesLine(body))),
       reporter: reporterName(body),
+      // A site-posted reply arrives under the bot's login with a credit
+      // footer; the footer is machinery, its name is the author to show.
       comments: comments.map((c) => ({
-        author: c.author,
+        author: displayName(c.body, c.author),
         isDeveloper: c.authorAssociation === 'OWNER',
         createdAt: c.createdAt,
-        html: renderIssueMarkdown(c.body),
+        html: renderIssueMarkdown(stripFooter(c.body)),
       })),
     }
     return htmlResponse(200, reportDetailPage(addon, detail))
@@ -184,6 +189,10 @@ async function castVote(event: FunctionUrlEvent): Promise<Response> {
     return json(400, { errors: [error instanceof Error ? error.message : 'Unreadable request'] })
   }
 
+  // A filled decoy field is a bot. Answer success so it learns nothing,
+  // and spend no GitHub call on it.
+  if (vote.website !== '') return json(200, { up: 0, down: 0 })
+
   const repo = REPOS.get(vote.slug)
   if (repo === undefined) return json(404, { errors: ['No such addon'] })
 
@@ -200,6 +209,83 @@ async function castVote(event: FunctionUrlEvent): Promise<Response> {
   } catch (error) {
     console.error('vote failed:', error instanceof Error ? error.message : String(error))
     return json(502, { errors: ['The vote could not be counted just now. Please try again shortly.'] })
+  }
+}
+
+/**
+ * Posts a reply for either request shape. A JSON body (the island) gets JSON
+ * back; a form-encoded body (the no-JS fallback POST) gets a 303 back to the
+ * report page it came from, where the new reply is visible - the classic
+ * POST-redirect-GET, and no success page to write.
+ */
+async function postComment(event: FunctionUrlEvent): Promise<Response> {
+  const contentType = event.headers?.['content-type']
+  const asJson = (contentType ?? '').toLowerCase().includes('application/json')
+
+  function jsonResponse(statusCode: number, data: unknown): Response {
+    return {
+      statusCode,
+      headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
+      body: JSON.stringify(data),
+      isBase64Encoded: false,
+    }
+  }
+
+  function problem(statusCode: number, messages: string[]): Response {
+    if (asJson) return jsonResponse(statusCode, { errors: messages })
+    const items = messages.map((m) => `<li>${esc(m)}</li>`).join('')
+    return {
+      statusCode,
+      headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+      body: page(
+        'Could not post reply - addons.dosaki.net',
+        `<h1 class="page">Could not post reply</h1><ul>${items}</ul>`,
+      ),
+      isBase64Encoded: false,
+    }
+  }
+
+  function success(request: CommentRequest): Response {
+    if (asJson) return jsonResponse(201, { ok: true })
+    return {
+      statusCode: 303,
+      headers: {
+        location: `/${request.slug}/reports/${request.issue}`,
+        'cache-control': 'no-store',
+      },
+      body: '',
+      isBase64Encoded: false,
+    }
+  }
+
+  let request: CommentRequest
+  try {
+    request = parseCommentRequest(contentType, event.body ?? '', event.isBase64Encoded === true)
+  } catch (error) {
+    return problem(400, [error instanceof Error ? error.message : 'Unreadable request'])
+  }
+
+  const repo = REPOS.get(request.slug)
+  if (repo === undefined) return problem(404, ['No such addon'])
+
+  // A filled decoy field is a bot. Answer success so it learns nothing,
+  // and spend no GitHub call on it.
+  if (request.website !== '') return success(request)
+
+  const problems = validateComment(request.body, request.name)
+  if (problems.length > 0) return problem(400, problems)
+
+  try {
+    const token = await githubToken()
+    const issue = await getIssue(repo, request.issue, token)
+    if (issue === null || issue.isPullRequest) return problem(404, ['No such report'])
+    if (issue.state !== 'open') return problem(400, ['That report is closed'])
+
+    await createComment(repo, request.issue, commentBody(request.body, creditName(request.name)), token)
+    return success(request)
+  } catch (error) {
+    console.error('post comment failed:', error instanceof Error ? error.message : String(error))
+    return problem(502, ['The reply could not be posted just now. Please try again shortly.'])
   }
 }
 
@@ -327,7 +413,10 @@ async function fileIssue(event: FunctionUrlEvent): Promise<Response> {
 
   // The site's own credit field, not the template's: pulled out before the
   // template fields are validated, credited in the footer, never a section.
-  const { [NAME_FIELD]: name = '', ...fields } = submission.fields
+  const { [NAME_FIELD]: name = '', [HONEYPOT_FIELD]: website = '', ...fields } = submission.fields
+  // A filled decoy field is a bot. Answer success so it learns nothing,
+  // and spend no GitHub call on it.
+  if (website !== '') return json(201, { number: 0 })
 
   const problems = validateSubmission(form, fields, name)
   if (problems.length > 0) return problem(400, problems)
@@ -335,7 +424,9 @@ async function fileIssue(event: FunctionUrlEvent): Promise<Response> {
   try {
     const number = await createIssue(REPOS.get(addon.slug)!, await githubToken(), {
       title: issueTitle(form, fields),
-      body: issueBody(form, fields, name),
+      // Validation ran on the typed name; crediting happens at filing time,
+      // so a blank name becomes a pseudonym rather than an anonymous report.
+      body: issueBody(form, fields, creditName(name)),
       labels: form.labels,
     })
     return json(201, { number })
@@ -355,5 +446,6 @@ export async function handler(event: FunctionUrlEvent): Promise<Response> {
   if (result.kind === 'issues') return listReports(result.slug)
   if (result.kind === 'report') return showReport(result.slug, result.number)
   if (result.kind === 'vote') return castVote(event)
+  if (result.kind === 'comment') return postComment(event)
   return fileIssue(event)
 }

@@ -173,6 +173,8 @@ footer.site::before {
 .field label.check { font-weight: 400; display: flex; gap: 8px; align-items: center; }
 fieldset.field { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; }
 fieldset.field legend { color: var(--bright); font-weight: 600; padding: 0 6px; }
+/* Honeypot: off-screen, not display:none - more autofill bots fall for it. */
+.hp { position: absolute; left: -9999px; }
 .intro { background: rgba(88, 198, 255, .05); border-left: 3px solid var(--accent);
   padding: 11px 14px; border-radius: 0 6px 6px 0; color: var(--dim); margin: 18px 0; }
 .dl.ghost {

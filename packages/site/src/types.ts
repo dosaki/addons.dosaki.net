@@ -40,3 +40,4 @@ export type Deferred =
   | { kind: 'issues'; slug: string }
   | { kind: 'report'; slug: string; number: number }
   | { kind: 'vote' }
+  | { kind: 'comment' }

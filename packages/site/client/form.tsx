@@ -3,6 +3,8 @@ import { StrictMode, useState } from 'react'
 import { collect, type Entry } from './collect.js'
 import { sha256Hex } from './sign.js'
 import { wireVotes } from './vote.js'
+import { wireCommentForm } from './comment.js'
+import { ensureName, prefillName } from './name.js'
 
 function entriesOf(form: HTMLFormElement): Entry[] {
   return Array.from(form.elements)
@@ -23,6 +25,7 @@ function Status({ form }: { form: HTMLFormElement }) {
 
   form.onsubmit = (event) => {
     event.preventDefault()
+    ensureName(form)
     setProblems([])
     setSending(true)
     const data = new FormData(form)
@@ -72,6 +75,10 @@ function Status({ form }: { form: HTMLFormElement }) {
   return sending ? <p className="hint">Sending…</p> : null
 }
 
+// Pre-fill runs on any page with a name field - the report form and the
+// report detail page's reply form alike; a page without one is a no-op.
+prefillName()
+
 const root = document.getElementById('form-root')
 const form = root?.querySelector('form')
 if (root !== null && form !== null && form !== undefined) {
@@ -80,6 +87,7 @@ if (root !== null && form !== null && form !== undefined) {
   createRoot(mount).render(<StrictMode><Status form={form} /></StrictMode>)
 }
 
-// One bundle serves both islands; on the reports page there is no #form-root,
-// only vote groups, and vice versa - each wiring is a no-op elsewhere.
+// One bundle serves three islands (form, votes, reply form); each wiring is
+// a no-op where its markup is absent.
 wireVotes()
+wireCommentForm()
