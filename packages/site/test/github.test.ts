@@ -1,6 +1,6 @@
 import { createPrivateKey, generateKeyPairSync, createVerify } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import { appJwt, createIssue, downloadRedirect, getIssue, listOpenIssues, setIssueBody } from '../src/github.js'
+import { appJwt, createIssue, downloadRedirect, getIssue, listComments, listOpenIssues, setIssueBody } from '../src/github.js'
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
 const pem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
@@ -150,20 +150,28 @@ describe('listOpenIssues', () => {
 })
 
 describe('getIssue', () => {
-  it('returns number, body, state and whether it is a pull request', async () => {
+  it('returns what both the vote and the detail page need', async () => {
     const { impl, calls } = jsonFetch(200, {
       number: 7,
+      title: 'It broke',
       body: null,
       state: 'open',
       created_at: '2026-03-01T00:00:00Z',
     })
     const got = await getIssue('dosaki/x', 7, 'tok', impl)
     expect(calls[0]!.url).toContain('/repos/dosaki/x/issues/7')
-    expect(got).toEqual({ number: 7, body: null, state: 'open', isPullRequest: false })
+    expect(got).toEqual({
+      number: 7,
+      title: 'It broke',
+      body: null,
+      state: 'open',
+      createdAt: '2026-03-01T00:00:00Z',
+      isPullRequest: false,
+    })
   })
 
   it('flags a pull request', async () => {
-    const { impl } = jsonFetch(200, { number: 7, body: null, state: 'open', pull_request: {} })
+    const { impl } = jsonFetch(200, { number: 7, title: 't', body: null, state: 'open', created_at: 'x', pull_request: {} })
     expect((await getIssue('dosaki/x', 7, 'tok', impl))!.isPullRequest).toBe(true)
   })
 
@@ -175,6 +183,39 @@ describe('getIssue', () => {
   it('throws with the status on any other refusal', async () => {
     const { impl } = jsonFetch(500, {})
     await expect(getIssue('dosaki/x', 7, 'tok', impl)).rejects.toThrow(/500/)
+  })
+})
+
+describe('listComments', () => {
+  const comment = {
+    user: { login: 'dosaki' },
+    author_association: 'OWNER',
+    body: 'Fixed in 1.2.3',
+    created_at: '2026-03-02T00:00:00Z',
+  }
+
+  it('maps what the detail page needs', async () => {
+    const { impl, calls } = jsonFetch(200, [comment])
+    const got = await listComments('dosaki/x', 7, 'tok', impl)
+    expect(calls[0]!.url).toContain('/repos/dosaki/x/issues/7/comments')
+    expect(got).toEqual([
+      {
+        author: 'dosaki',
+        authorAssociation: 'OWNER',
+        body: 'Fixed in 1.2.3',
+        createdAt: '2026-03-02T00:00:00Z',
+      },
+    ])
+  })
+
+  it('survives a comment whose account was deleted', async () => {
+    const { impl } = jsonFetch(200, [{ ...comment, user: null }])
+    expect((await listComments('dosaki/x', 7, 'tok', impl))[0]!.author).toBe('ghost')
+  })
+
+  it('throws with the status when GitHub refuses', async () => {
+    const { impl } = jsonFetch(500, [])
+    await expect(listComments('dosaki/x', 7, 'tok', impl)).rejects.toThrow(/500/)
   })
 })
 

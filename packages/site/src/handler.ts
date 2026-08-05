@@ -167,6 +167,14 @@ export function route(site: SiteData, method: string, path: string): Response | 
     return { kind: 'issues', slug: parts[0]! }
   }
 
+  if (parts.length === 3 && parts[1] === 'reports') {
+    // Canonical numbers only ("07" would alias "7" as a second URL).
+    if (find(site, parts[0]!) === undefined || !/^[1-9]\d*$/.test(parts[2]!)) {
+      return html(404, notFoundPage(site.addons))
+    }
+    return { kind: 'report', slug: parts[0]!, number: Number(parts[2]) }
+  }
+
   if (parts.length === 2 && parts[1] === 'report') {
     const addon = find(site, parts[0]!)
     if (addon !== undefined) return html(200, reportListPage(addon))

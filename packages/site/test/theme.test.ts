@@ -32,6 +32,12 @@ describe('THEME_CSS', () => {
     expect(THEME_CSS).toContain('.vote:disabled')
   })
 
+  it('styles the report detail replies, with the developer badge in bronze', () => {
+    expect(THEME_CSS).toContain('ul.replies')
+    expect(THEME_CSS).toContain('.reply')
+    expect(THEME_CSS).toContain('.dev')
+  })
+
   it('files the success box under arcane blue, not the old green', () => {
     expect(THEME_CSS).not.toContain('#2d6a4f')
     expect(THEME_CSS).not.toContain('#12211a')

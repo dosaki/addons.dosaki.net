@@ -202,4 +202,13 @@ button.vote:hover { border-color: var(--accent); box-shadow: 0 0 12px var(--glow
   background: rgba(201, 169, 97, .05); box-shadow: none;
 }
 .vote .count { font-weight: 650; margin-left: 4px; }
+.report-body { margin-top: 22px; }
+.replies-title { font-size: 20px; margin-top: 36px; }
+ul.replies { list-style: none; margin: 14px 0 40px; padding: 0; display: grid; gap: 12px; }
+.reply {
+  background: var(--panel); border: 1px solid var(--line-soft); border-radius: 8px;
+  padding: 12px 16px;
+}
+.reply .hint { margin: 0 0 4px; }
+.reply .dev { color: var(--bronze); }
 `

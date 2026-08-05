@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addonPage, assetUrl, indexPage, notFoundPage, reportFormPage, reportListPage, reportsPage } from '../src/templates.js'
+import { addonPage, assetUrl, indexPage, notFoundPage, reportDetailPage, reportFormPage, reportListPage, reportsPage } from '../src/templates.js'
 import type { AddonPage, FormDefinition } from '../src/types.js'
 
 const addon: AddonPage = {
@@ -235,7 +235,87 @@ describe('reportsPage', () => {
   })
 })
 
+const aDetail = {
+  number: 7,
+  title: 'It broke',
+  createdAt: '2026-03-01T12:00:00Z',
+  up: 3,
+  down: 1,
+  html: '<h3>What happened</h3><p>The HUD vanished</p>',
+  reporter: 'Nesingwary' as string | null,
+  comments: [
+    { author: 'dosaki', isDeveloper: true, createdAt: '2026-03-02T12:00:00Z', html: '<p>Fixed in 1.2.3</p>' },
+    { author: 'somefan', isDeveloper: false, createdAt: '2026-03-03T12:00:00Z', html: '<p>Same here</p>' },
+  ],
+}
+
+describe('reportDetailPage', () => {
+  it('shows the title, the rendered body, and when it was opened', () => {
+    const html = reportDetailPage(withForms, aDetail)
+    expect(html).toContain('It broke')
+    expect(html).toContain('The HUD vanished')
+    expect(html).toContain('2026-03-01')
+  })
+
+  it('credits the reporter when the report carried a name', () => {
+    expect(reportDetailPage(withForms, aDetail)).toContain('Reported by Nesingwary')
+  })
+
+  it('stays silent about the reporter when there was none', () => {
+    expect(reportDetailPage(withForms, { ...aDetail, reporter: null })).not.toContain('Reported by')
+  })
+
+  it('carries the same vote widget as the list', () => {
+    const html = reportDetailPage(withForms, aDetail)
+    expect(html).toContain('data-slug="survivalrp"')
+    expect(html).toContain('data-issue="7"')
+    expect(html).toContain('data-dir="up"')
+  })
+
+  it('badges the developer reply and names the other', () => {
+    const html = reportDetailPage(withForms, aDetail)
+    expect(html).toContain('Developer')
+    expect(html).toContain('somefan')
+    expect(html).toContain('Fixed in 1.2.3')
+  })
+
+  it('says so plainly when nobody replied', () => {
+    expect(reportDetailPage(withForms, { ...aDetail, comments: [] }).toLowerCase()).toContain(
+      'no replies yet',
+    )
+  })
+
+  it('escapes the title and comment authors rather than trusting them', () => {
+    const evil = {
+      ...aDetail,
+      title: '<script>alert(1)</script>',
+      comments: [{ author: '<b>x</b>', isDeveloper: false, createdAt: '2026-03-03T12:00:00Z', html: '<p>hi</p>' }],
+    }
+    const html = reportDetailPage(withForms, evil)
+    expect(html).not.toContain('<script>alert(1)')
+    expect(html).not.toContain('<b>x</b>')
+  })
+
+  it('links back to the reports list', () => {
+    expect(reportDetailPage(withForms, aDetail)).toContain('href="/survivalrp/reports"')
+  })
+
+  it('loads the client script and warns a visitor without JavaScript', () => {
+    const html = reportDetailPage(withForms, aDetail)
+    expect(html).toContain('/static/form.js')
+    expect(html).toContain('<noscript>')
+  })
+
+  it('never mentions GitHub - users need not know where reports live', () => {
+    expect(reportDetailPage(withForms, aDetail).toLowerCase()).not.toContain('github')
+  })
+})
+
 describe('links to the reports page', () => {
+  it('links each listed report title to its detail page', () => {
+    expect(reportsPage(withForms, someReports)).toContain('href="/survivalrp/reports/7"')
+  })
+
   it('from the addon page header', () => {
     expect(addonPage(withForms)).toContain('href="/survivalrp/reports"')
   })

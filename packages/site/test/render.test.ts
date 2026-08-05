@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { renderReadme } from '../src/render.js'
+import { renderIssueMarkdown, renderReadme } from '../src/render.js'
 
 const real = readFileSync(
   join(import.meta.dirname, 'fixtures', 'survivalrp-readme.md'),
@@ -76,5 +76,23 @@ describe('renderReadme', () => {
     expect(html).not.toContain('<script')
     // Every heading id it advertises must actually exist in the HTML.
     for (const h of headings) expect(html).toContain(`id="${h.id}"`)
+  })
+})
+
+describe('renderIssueMarkdown', () => {
+  it('renders the section shape issueBody produces', () => {
+    const html = renderIssueMarkdown('### What happened\n\nIt **broke**')
+    expect(html).toContain('<h3')
+    expect(html).toContain('<strong>broke</strong>')
+  })
+
+  it('sanitizes a hostile body exactly like a README', () => {
+    const html = renderIssueMarkdown('<script>alert(1)</script><img src=x onerror=alert(1)>')
+    expect(html).not.toContain('<script')
+    expect(html).not.toContain('onerror')
+  })
+
+  it('keeps fenced code blocks, which bug reports lean on', () => {
+    expect(renderIssueMarkdown('```\nerror line\n```')).toContain('<pre>')
   })
 })

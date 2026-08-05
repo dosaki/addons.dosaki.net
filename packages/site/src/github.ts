@@ -107,8 +107,10 @@ export async function listOpenIssues(
 
 export interface IssueDetail {
   number: number
+  title: string
   body: string | null
   state: string
+  createdAt: string
   isPullRequest: boolean
 }
 
@@ -127,10 +129,46 @@ export async function getIssue(
   const raw = (await res.json()) as RawIssue
   return {
     number: raw.number,
+    title: raw.title,
     body: raw.body,
     state: raw.state,
+    createdAt: raw.created_at,
     isPullRequest: raw.pull_request !== undefined,
   }
+}
+
+export interface IssueComment {
+  author: string
+  authorAssociation: string
+  body: string
+  createdAt: string
+}
+
+interface RawComment {
+  user: { login: string } | null
+  author_association: string
+  body: string
+  created_at: string
+}
+
+export async function listComments(
+  repo: string,
+  number: number,
+  token: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<IssueComment[]> {
+  const res = await fetchImpl(`${API}/repos/${repo}/issues/${number}/comments?per_page=100`, {
+    headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'user-agent': UA },
+  })
+  if (!res.ok) throw new Error(`list comments failed: ${res.status} ${await res.text()}`)
+  const raw = (await res.json()) as RawComment[]
+  return raw.map((c) => ({
+    // "ghost" is GitHub's own name for a deleted account.
+    author: c.user?.login ?? 'ghost',
+    authorAssociation: c.author_association,
+    body: c.body,
+    createdAt: c.created_at,
+  }))
 }
 
 export async function setIssueBody(

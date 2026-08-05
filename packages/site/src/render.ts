@@ -62,6 +62,15 @@ function decodeEntities(text: string): string {
     .replace(/&amp;/g, '&')
 }
 
+/**
+ * An issue body is untrusted input in exactly the way a future addon's README
+ * is, so it goes through the same pipeline and allow-list - minus the heading
+ * collection, which only the README page's contents nav wants.
+ */
+export function renderIssueMarkdown(markdown: string): string {
+  return sanitizeHtml(md.render(markdown), ALLOWED)
+}
+
 export function renderReadme(markdown: string): Rendered {
   const raw = md.render(markdown)
   const clean = sanitizeHtml(raw, ALLOWED)
