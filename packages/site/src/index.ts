@@ -2,6 +2,7 @@ import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { buildSite } from './build.js'
+import { creditName } from './names.js'
 import { appJwt, createIssue, downloadRedirect, getIssue, installationToken, listComments, listOpenIssues, setIssueBody } from './github.js'
 import { isDeferred, route } from './handler.js'
 import type { FunctionUrlEvent, Response } from './handler.js'
@@ -342,7 +343,9 @@ async function fileIssue(event: FunctionUrlEvent): Promise<Response> {
   try {
     const number = await createIssue(REPOS.get(addon.slug)!, await githubToken(), {
       title: issueTitle(form, fields),
-      body: issueBody(form, fields, name),
+      // Validation ran on the typed name; crediting happens at filing time,
+      // so a blank name becomes a pseudonym rather than an anonymous report.
+      body: issueBody(form, fields, creditName(name)),
       labels: form.labels,
     })
     return json(201, { number })
