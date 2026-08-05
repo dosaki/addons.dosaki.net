@@ -171,6 +171,26 @@ export async function listComments(
   }))
 }
 
+export async function createComment(
+  repo: string,
+  number: number,
+  body: string,
+  token: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  const res = await fetchImpl(`${API}/repos/${repo}/issues/${number}/comments`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${token}`,
+      accept: 'application/vnd.github+json',
+      'content-type': 'application/json',
+      'user-agent': UA,
+    },
+    body: JSON.stringify({ body }),
+  })
+  if (!res.ok) throw new Error(`create comment failed: ${res.status} ${await res.text()}`)
+}
+
 export async function setIssueBody(
   repo: string,
   number: number,
