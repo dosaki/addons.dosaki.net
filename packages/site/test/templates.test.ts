@@ -178,6 +178,13 @@ describe('reportFormPage', () => {
     expect(html).toContain('<noscript>')
     expect(html.indexOf('<noscript>')).toBeLessThan(html.indexOf('<form'))
   })
+
+  it('plants the off-screen honeypot decoy', () => {
+    const html = reportFormPage(withForms, aForm)
+    expect(html).toContain('name="website"')
+    expect(html).toContain('class="hp"')
+    expect(html).toContain('tabindex="-1"')
+  })
 })
 
 const someReports = [

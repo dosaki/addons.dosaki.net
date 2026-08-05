@@ -121,6 +121,15 @@ function nameField(form: FormDefinition): string {
 <input type="text" id="reporter-name" name="reporter-name" maxlength="80"></div>`
 }
 
+/**
+ * Off-screen decoy: humans never see or reach it, autofill bots fill it.
+ * The server silently drops any submission where it is non-empty.
+ */
+function honeypotField(): string {
+  return `<div class="hp" aria-hidden="true"><label for="website">Website</label>
+<input type="text" id="website" name="website" tabindex="-1" autocomplete="off"></div>`
+}
+
 export interface ReportComment {
   author: string
   isDeveloper: boolean
@@ -191,6 +200,7 @@ export function reportFormPage(addon: AddonPage, form: FormDefinition): string {
 <input type="hidden" name="form" value="${esc(form.key)}">
 ${fieldsHtml(form)}
 ${nameField(form)}
+${honeypotField()}
 <button type="submit" class="dl">Send report</button>
 </form>
 </div>
