@@ -22,7 +22,7 @@ export const HONEYPOT_FIELD = 'website'
 const FOOTER = '_Filed via addons.dosaki.net_'
 const FOOTER_LINE = /^_Filed via addons\.dosaki\.net(?: by (.+?))?_$/m
 
-function footer(name: string): string {
+export function footer(name: string): string {
   return name === '' ? FOOTER : `_Filed via addons.dosaki.net by ${name}_`
 }
 
