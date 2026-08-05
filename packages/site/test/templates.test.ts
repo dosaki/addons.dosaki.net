@@ -173,6 +173,11 @@ describe('reportFormPage', () => {
     expect(reportFormPage(withForms, aForm)).toContain('<textarea')
   })
 
+  it('asks for the name before the template fields', () => {
+    const html = reportFormPage(withForms, aForm)
+    expect(html.indexOf('id="reporter-name"')).toBeLessThan(html.indexOf('What happened?'))
+  })
+
   it('warns a visitor without JavaScript before they fill anything in', () => {
     const html = reportFormPage(withForms, aForm)
     expect(html).toContain('<noscript>')
@@ -279,11 +284,16 @@ describe('reportDetailPage', () => {
     expect(html).toContain('data-dir="up"')
   })
 
-  it('badges the developer reply and names the other', () => {
+  it('badges the developer reply by name and names the other', () => {
     const html = reportDetailPage(withForms, aDetail)
-    expect(html).toContain('Developer')
+    expect(html).toContain('Dosaki (Developer)')
     expect(html).toContain('somefan')
     expect(html).toContain('Fixed in 1.2.3')
+  })
+
+  it('asks for the name before the reply text', () => {
+    const html = reportDetailPage(withForms, aDetail)
+    expect(html.indexOf('id="reporter-name"')).toBeLessThan(html.indexOf('id="comment-body"'))
   })
 
   it('says so plainly when nobody replied', () => {
@@ -355,8 +365,8 @@ describe('the injected Name field', () => {
 
   it('is optional and says so', () => {
     const html = reportFormPage(withForms, aForm)
-    const field = html.slice(html.indexOf('id="reporter-name"'))
-    expect(field.slice(0, 200)).not.toContain('required')
+    const input = html.slice(html.indexOf('<input type="text" id="reporter-name"'))
+    expect(input.slice(0, input.indexOf('>'))).not.toContain('required')
   })
 
   it('is not injected twice when a template already asks for it', () => {
