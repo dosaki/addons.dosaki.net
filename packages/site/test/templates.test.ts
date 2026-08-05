@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addonPage, assetUrl, indexPage, notFoundPage, reportFormPage, reportListPage } from '../src/templates.js'
+import { addonPage, assetUrl, indexPage, notFoundPage, reportFormPage, reportListPage, reportsPage } from '../src/templates.js'
 import type { AddonPage, FormDefinition } from '../src/types.js'
 
 const addon: AddonPage = {
@@ -177,6 +177,97 @@ describe('reportFormPage', () => {
     const html = reportFormPage(withForms, aForm)
     expect(html).toContain('<noscript>')
     expect(html.indexOf('<noscript>')).toBeLessThan(html.indexOf('<form'))
+  })
+})
+
+const someReports = [
+  { number: 7, title: 'It broke', createdAt: '2026-03-01T12:00:00Z', up: 3, down: 1 },
+  { number: 9, title: 'Add pets', createdAt: '2026-04-01T12:00:00Z', up: 0, down: 0 },
+]
+
+describe('reportsPage', () => {
+  it('lists each report with its title and tallies', () => {
+    const html = reportsPage(withForms, someReports)
+    expect(html).toContain('It broke')
+    expect(html).toContain('Add pets')
+    expect(html).toContain('data-issue="7"')
+    expect(html).toContain('>3<')
+    expect(html).toContain('>1<')
+  })
+
+  it('renders reports in the order given, which the caller has sorted', () => {
+    const html = reportsPage(withForms, someReports)
+    expect(html.indexOf('It broke')).toBeLessThan(html.indexOf('Add pets'))
+  })
+
+  it('offers an up and a down button per report, carrying the slug', () => {
+    const html = reportsPage(withForms, someReports)
+    expect(html).toContain('data-slug="survivalrp"')
+    expect(html).toContain('data-dir="up"')
+    expect(html).toContain('data-dir="down"')
+  })
+
+  it('shows when a report was opened', () => {
+    expect(reportsPage(withForms, someReports)).toContain('2026-03-01')
+  })
+
+  it('escapes report titles rather than trusting them', () => {
+    const evil = [{ ...someReports[0]!, title: '<script>alert(1)</script>' }]
+    expect(reportsPage(withForms, evil)).not.toContain('<script>alert(1)')
+  })
+
+  it('says so plainly when nothing has been reported', () => {
+    expect(reportsPage(withForms, []).toLowerCase()).toContain('nothing has been reported')
+  })
+
+  it('degrades to an unavailable note when the list cannot be fetched', () => {
+    expect(reportsPage(withForms, null).toLowerCase()).toContain('temporarily unavailable')
+  })
+
+  it('loads the client script and warns a visitor without JavaScript', () => {
+    const html = reportsPage(withForms, someReports)
+    expect(html).toContain('/static/form.js')
+    expect(html).toContain('<noscript>')
+  })
+
+  it('never mentions GitHub - users need not know where reports live', () => {
+    expect(reportsPage(withForms, someReports).toLowerCase()).not.toContain('github')
+  })
+})
+
+describe('links to the reports page', () => {
+  it('from the addon page header', () => {
+    expect(addonPage(withForms)).toContain('href="/survivalrp/reports"')
+  })
+
+  it('from the report chooser, framed as duplicate prevention', () => {
+    const html = reportListPage(withForms)
+    expect(html).toContain('href="/survivalrp/reports"')
+    expect(html.toLowerCase()).toContain('already been reported')
+  })
+})
+
+describe('the injected Name field', () => {
+  it('appears on every report form before the submit button', () => {
+    const html = reportFormPage(withForms, aForm)
+    expect(html).toContain('name="reporter-name"')
+    expect(html).toContain('so I know who to credit for the idea or the report')
+    expect(html.indexOf('reporter-name')).toBeLessThan(html.indexOf('Send report'))
+  })
+
+  it('is optional and says so', () => {
+    const html = reportFormPage(withForms, aForm)
+    const field = html.slice(html.indexOf('id="reporter-name"'))
+    expect(field.slice(0, 200)).not.toContain('required')
+  })
+
+  it('is not injected twice when a template already asks for it', () => {
+    const own: FormDefinition = {
+      ...aForm,
+      fields: [...aForm.fields, { type: 'input', id: 'reporter-name', label: 'Name', required: false }],
+    }
+    const html = reportFormPage({ ...addon, forms: [own] }, own)
+    expect((html.match(/name="reporter-name"/g) ?? []).length).toBe(1)
   })
 })
 

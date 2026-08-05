@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { collect } from '../client/collect.js'
+import { voteKey, votePayload } from '../client/vote.js'
 
 describe('collect', () => {
   it('joins repeated names, as a checkbox group produces', () => {
@@ -25,5 +26,21 @@ describe('collect', () => {
       { name: 'form', value: 'f', type: 'hidden' },
       { name: 'what', value: 'x', type: 'textarea' },
     ])).toEqual({ what: 'x' })
+  })
+})
+
+describe('voteKey', () => {
+  it('scopes the remembered vote to one issue of one addon', () => {
+    expect(voteKey('survivalrp', '7')).toBe('vote:survivalrp:7')
+  })
+})
+
+describe('votePayload', () => {
+  it('builds the JSON the api expects, with the issue as a number', () => {
+    expect(JSON.parse(votePayload('survivalrp', '7', 'up'))).toEqual({
+      slug: 'survivalrp',
+      issue: 7,
+      direction: 'up',
+    })
   })
 })

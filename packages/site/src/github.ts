@@ -73,6 +73,86 @@ export async function downloadRedirect(
   return location
 }
 
+export interface IssueSummary {
+  number: number
+  title: string
+  body: string | null
+  createdAt: string
+}
+
+interface RawIssue {
+  number: number
+  title: string
+  body: string | null
+  created_at: string
+  state: string
+  pull_request?: unknown
+}
+
+/** Open issues only; GitHub's issues API mixes in pull requests, dropped here. */
+export async function listOpenIssues(
+  repo: string,
+  token: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<IssueSummary[]> {
+  const res = await fetchImpl(`${API}/repos/${repo}/issues?state=open&per_page=100`, {
+    headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'user-agent': UA },
+  })
+  if (!res.ok) throw new Error(`list issues failed: ${res.status} ${await res.text()}`)
+  const raw = (await res.json()) as RawIssue[]
+  return raw
+    .filter((i) => i.pull_request === undefined)
+    .map((i) => ({ number: i.number, title: i.title, body: i.body, createdAt: i.created_at }))
+}
+
+export interface IssueDetail {
+  number: number
+  body: string | null
+  state: string
+  isPullRequest: boolean
+}
+
+/** null for a missing issue - the caller turns that into its own 404. */
+export async function getIssue(
+  repo: string,
+  number: number,
+  token: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<IssueDetail | null> {
+  const res = await fetchImpl(`${API}/repos/${repo}/issues/${number}`, {
+    headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'user-agent': UA },
+  })
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`get issue failed: ${res.status} ${await res.text()}`)
+  const raw = (await res.json()) as RawIssue
+  return {
+    number: raw.number,
+    body: raw.body,
+    state: raw.state,
+    isPullRequest: raw.pull_request !== undefined,
+  }
+}
+
+export async function setIssueBody(
+  repo: string,
+  number: number,
+  body: string,
+  token: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  const res = await fetchImpl(`${API}/repos/${repo}/issues/${number}`, {
+    method: 'PATCH',
+    headers: {
+      authorization: `Bearer ${token}`,
+      accept: 'application/vnd.github+json',
+      'content-type': 'application/json',
+      'user-agent': UA,
+    },
+    body: JSON.stringify({ body }),
+  })
+  if (!res.ok) throw new Error(`set issue body failed: ${res.status} ${await res.text()}`)
+}
+
 export interface NewIssue {
   title: string
   body: string
