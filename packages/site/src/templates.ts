@@ -85,7 +85,7 @@ export interface ReportItem {
 
 function reportRow(slug: string, report: ReportItem): string {
   return `<li class="card report">
-<div><h2>${esc(report.title)}</h2><p class="hint">Opened ${esc(report.createdAt.slice(0, 10))}</p></div>
+<div><h2><a href="/${esc(slug)}/reports/${report.number}">${esc(report.title)}</a></h2><p class="hint">Opened ${esc(report.createdAt.slice(0, 10))}</p></div>
 <div class="votes" data-slug="${esc(slug)}" data-issue="${report.number}">
 <button class="vote" data-dir="up" aria-label="This matters to me">👍 <span class="count">${report.up}</span></button>
 <button class="vote" data-dir="down" aria-label="Not a priority">👎 <span class="count">${report.down}</span></button>
@@ -119,6 +119,62 @@ function nameField(form: FormDefinition): string {
   return `<div class="field"><label for="reporter-name">Name <span class="opt">optional</span></label>
 <p class="hint">so I know who to credit for the idea or the report</p>
 <input type="text" id="reporter-name" name="reporter-name" maxlength="80"></div>`
+}
+
+export interface ReportComment {
+  author: string
+  isDeveloper: boolean
+  createdAt: string
+  /** Already rendered AND sanitized by renderIssueMarkdown - inserted as-is. */
+  html: string
+}
+
+export interface ReportDetail {
+  number: number
+  title: string
+  createdAt: string
+  up: number
+  down: number
+  /** Already rendered AND sanitized by renderIssueMarkdown - inserted as-is. */
+  html: string
+  reporter: string | null
+  comments: ReportComment[]
+}
+
+function commentBlock(comment: ReportComment): string {
+  const who = comment.isDeveloper
+    ? '<strong class="dev">Developer</strong>'
+    : `<strong>${esc(comment.author)}</strong>`
+  return `<li class="reply">
+<p class="hint">${who} &middot; ${esc(comment.createdAt.slice(0, 10))}</p>
+<div>${comment.html}</div></li>`
+}
+
+export function reportDetailPage(addon: AddonPage, report: ReportDetail): string {
+  const credit = report.reporter === null ? '' : ` &middot; Reported by ${esc(report.reporter)}`
+  const replies =
+    report.comments.length === 0
+      ? '<p class="hint">No replies yet.</p>'
+      : `<ul class="replies">${report.comments.map(commentBlock).join('\n')}</ul>`
+
+  return shell(
+    `${report.title} - ${addon.name}`,
+    `${siteHeader(addon)}
+<div class="wrap">
+<p class="crumb"><a href="/${esc(addon.slug)}/reports">&larr; All reports</a></p>
+<h1 class="page">${esc(report.title)}</h1>
+<p class="hint">Opened ${esc(report.createdAt.slice(0, 10))}${credit}</p>
+<noscript><div class="problems">Voting needs JavaScript enabled - the site signs your vote before forwarding it.</div></noscript>
+<div class="votes" data-slug="${esc(addon.slug)}" data-issue="${report.number}">
+<button class="vote" data-dir="up" aria-label="This matters to me">👍 <span class="count">${report.up}</span></button>
+<button class="vote" data-dir="down" aria-label="Not a priority">👎 <span class="count">${report.down}</span></button>
+</div>
+<main class="report-body">${report.html}</main>
+<h2 class="page replies-title">Replies</h2>
+${replies}
+<script src="/static/form.js" defer></script>
+</div>`,
+  )
 }
 
 export function reportFormPage(addon: AddonPage, form: FormDefinition): string {

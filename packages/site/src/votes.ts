@@ -32,6 +32,12 @@ export function applyVote(body: string | null, direction: Direction): string {
   return current === '' ? line(bumped) : `${current}\n\n${line(bumped)}`
 }
 
+/** For display: the tally is machinery, shown as the vote widget instead. */
+export function stripVotesLine(body: string): string {
+  if (!TALLY.test(body)) return body
+  return body.replace(TALLY, '').replace(/\n{3,}/g, '\n\n').replace(/\n+$/, '')
+}
+
 export interface VoteRequest {
   slug: string
   issue: number

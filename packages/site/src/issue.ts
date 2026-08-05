@@ -14,9 +14,21 @@ export const NAME_FIELD = 'reporter-name'
 export const NAME_MAX = 80
 
 const FOOTER = '_Filed via addons.dosaki.net_'
+const FOOTER_LINE = /^_Filed via addons\.dosaki\.net(?: by (.+?))?_$/m
 
 function footer(name: string): string {
   return name === '' ? FOOTER : `_Filed via addons.dosaki.net by ${name}_`
+}
+
+/** The credited name a filed body carries, or null for anonymous or hand-filed. */
+export function reporterName(body: string): string | null {
+  return FOOTER_LINE.exec(body)?.[1] ?? null
+}
+
+/** For display: the footer is machinery; a name resurfaces as its own credit. */
+export function stripFooter(body: string): string {
+  if (!FOOTER_LINE.test(body)) return body
+  return body.replace(FOOTER_LINE, '').replace(/\n{3,}/g, '\n\n').replace(/\n+$/, '')
 }
 
 /** markdown blocks are prose in the form, never an answer. */

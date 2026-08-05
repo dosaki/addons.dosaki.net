@@ -2,13 +2,14 @@ import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { buildSite } from './build.js'
-import { appJwt, createIssue, downloadRedirect, getIssue, installationToken, listOpenIssues, setIssueBody } from './github.js'
+import { appJwt, createIssue, downloadRedirect, getIssue, installationToken, listComments, listOpenIssues, setIssueBody } from './github.js'
 import { isDeferred, route } from './handler.js'
 import type { FunctionUrlEvent, Response } from './handler.js'
-import { esc, reportsPage, THEME_CSS } from './templates.js'
-import type { ReportItem } from './templates.js'
-import { issueBody, issueTitle, NAME_FIELD, validateSubmission } from './issue.js'
-import { applyVote, makeListCache, parseVoteRequest, parseVotes, sortByVotes } from './votes.js'
+import { esc, notFoundPage, reportDetailPage, reportsPage, THEME_CSS } from './templates.js'
+import type { ReportDetail, ReportItem } from './templates.js'
+import { issueBody, issueTitle, NAME_FIELD, reporterName, stripFooter, validateSubmission } from './issue.js'
+import { renderIssueMarkdown } from './render.js'
+import { applyVote, makeListCache, parseVoteRequest, parseVotes, sortByVotes, stripVotesLine } from './votes.js'
 import type { SiteData } from './types.js'
 
 /** Baked at deploy time by the deploy workflow. */
@@ -111,6 +112,54 @@ async function listReports(slug: string): Promise<Response> {
     headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
     body: reportsPage(addon, reports),
     isBase64Encoded: false,
+  }
+}
+
+async function showReport(slug: string, number: number): Promise<Response> {
+  // route() already checked the slug exists before deferring here.
+  const addon = site.addons.find((a) => a.slug === slug)!
+  const repo = REPOS.get(slug)!
+
+  const htmlResponse = (statusCode: number, body: string): Response => ({
+    statusCode,
+    headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+    body,
+    isBase64Encoded: false,
+  })
+
+  try {
+    const token = await githubToken()
+    const issue = await getIssue(repo, number, token)
+    // The list shows open issues only, so a closed one is simply gone.
+    if (issue === null || issue.isPullRequest || issue.state !== 'open') {
+      return htmlResponse(404, notFoundPage(site.addons))
+    }
+    const comments = await listComments(repo, number, token)
+
+    const body = issue.body ?? ''
+    const detail: ReportDetail = {
+      number: issue.number,
+      title: issue.title,
+      createdAt: issue.createdAt,
+      ...parseVotes(issue.body),
+      html: renderIssueMarkdown(stripFooter(stripVotesLine(body))),
+      reporter: reporterName(body),
+      comments: comments.map((c) => ({
+        author: c.author,
+        isDeveloper: c.authorAssociation === 'OWNER',
+        createdAt: c.createdAt,
+        html: renderIssueMarkdown(c.body),
+      })),
+    }
+    return htmlResponse(200, reportDetailPage(addon, detail))
+  } catch (error) {
+    console.error('show report failed:', error instanceof Error ? error.message : String(error))
+    return {
+      statusCode: 502,
+      headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
+      body: 'The report is temporarily unavailable. Please try again shortly.',
+      isBase64Encoded: false,
+    }
   }
 }
 
@@ -304,6 +353,7 @@ export async function handler(event: FunctionUrlEvent): Promise<Response> {
   if (!isDeferred(result)) return result
   if (result.kind === 'download') return download(result.slug)
   if (result.kind === 'issues') return listReports(result.slug)
+  if (result.kind === 'report') return showReport(result.slug, result.number)
   if (result.kind === 'vote') return castVote(event)
   return fileIssue(event)
 }

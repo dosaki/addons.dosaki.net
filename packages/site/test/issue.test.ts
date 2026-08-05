@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { issueBody, issueTitle, validateSubmission, MAX_FIELD_CHARS, NAME_MAX } from '../src/issue.js'
+import { issueBody, issueTitle, reporterName, stripFooter, validateSubmission, MAX_FIELD_CHARS, NAME_MAX } from '../src/issue.js'
 import type { FormDefinition } from '../src/types.js'
 
 const form: FormDefinition = {
@@ -48,6 +48,33 @@ describe('reporter name', () => {
 
   it('never lets the name into the title', () => {
     expect(issueTitle(form, { what: 'It broke' })).not.toContain('Nesingwary')
+  })
+})
+
+describe('displaying a filed body', () => {
+  it('finds the reporter name the footer carries', () => {
+    expect(reporterName(issueBody(form, { what: 'x' }, 'Nesingwary'))).toBe('Nesingwary')
+  })
+
+  it('finds no name in an anonymous footer', () => {
+    expect(reporterName(issueBody(form, { what: 'x' }))).toBeNull()
+  })
+
+  it('finds no name in a body filed straight on the repo', () => {
+    expect(reporterName('Reported by hand, no footer')).toBeNull()
+  })
+
+  it('strips the footer, named or not', () => {
+    expect(stripFooter(issueBody(form, { what: 'x' }, 'Nesingwary'))).not.toContain('Filed via')
+    expect(stripFooter(issueBody(form, { what: 'x' }))).not.toContain('Filed via')
+  })
+
+  it('keeps the sections when stripping the footer', () => {
+    expect(stripFooter(issueBody(form, { what: 'It broke' }))).toContain('It broke')
+  })
+
+  it('leaves a footerless body untouched', () => {
+    expect(stripFooter('Reported by hand')).toBe('Reported by hand')
   })
 })
 

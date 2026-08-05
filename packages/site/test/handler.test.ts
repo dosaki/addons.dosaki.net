@@ -186,6 +186,24 @@ describe('route', () => {
     expect((route(site, 'GET', '/nope/reports') as Response).statusCode).toBe(404)
   })
 
+  it('defers a report detail with its slug and number', () => {
+    expect(route(site, 'GET', '/survivalrp/reports/7')).toEqual({
+      kind: 'report',
+      slug: 'survivalrp',
+      number: 7,
+    })
+  })
+
+  it('404s a report number that is not a positive integer', () => {
+    for (const bad of ['0', '-1', '1.5', 'abc', '07']) {
+      expect((route(site, 'GET', `/survivalrp/reports/${bad}`) as Response).statusCode).toBe(404)
+    }
+  })
+
+  it('404s a report detail for an unknown slug without calling GitHub', () => {
+    expect((route(site, 'GET', '/nope/reports/7') as Response).statusCode).toBe(404)
+  })
+
   it('defers POST /api/vote rather than answering it', () => {
     expect(route(site, 'POST', '/api/vote')).toEqual({ kind: 'vote' })
   })

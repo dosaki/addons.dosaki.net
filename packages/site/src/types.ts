@@ -38,4 +38,5 @@ export type Deferred =
   | { kind: 'download'; slug: string }
   | { kind: 'issue' }
   | { kind: 'issues'; slug: string }
+  | { kind: 'report'; slug: string; number: number }
   | { kind: 'vote' }

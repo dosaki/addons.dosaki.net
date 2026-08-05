@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyVote, makeListCache, parseVoteRequest, parseVotes, sortByVotes } from '../src/votes.js'
+import { applyVote, makeListCache, parseVoteRequest, parseVotes, sortByVotes, stripVotesLine } from '../src/votes.js'
 
 describe('parseVotes', () => {
   it('reads the tally line wherever it sits in the body', () => {
@@ -42,6 +42,25 @@ describe('applyVote', () => {
     expect(applyVote(body, 'up')).toBe(
       '### What happened\n\nIt  broke\t badly\n\n**Votes:** 1👍 / 0👎\n\n_Filed via addons.dosaki.net_',
     )
+  })
+})
+
+describe('stripVotesLine', () => {
+  it('removes the tally line without leaving a blank gap', () => {
+    expect(stripVotesLine('Report\n\n**Votes:** 3👍 / 1👎\n\nMore')).toBe('Report\n\nMore')
+  })
+
+  it('leaves a body without the line untouched', () => {
+    expect(stripVotesLine('Just a report')).toBe('Just a report')
+  })
+
+  it('leaves lookalike prose alone', () => {
+    const prose = 'Please add **Votes:** 3👍 / 1👎 counters'
+    expect(stripVotesLine(prose)).toBe(prose)
+  })
+
+  it('round-trips applyVote away', () => {
+    expect(stripVotesLine(applyVote('A report', 'up'))).toBe('A report')
   })
 })
 
