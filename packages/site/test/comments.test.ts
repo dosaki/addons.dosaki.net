@@ -80,6 +80,11 @@ describe('commentBody', () => {
     expect(reporterName(body)).toBe('Crimson Brave Otter')
     expect(stripFooter(body)).toBe('Same here\n\nOn 1.2.2')
   })
+
+  it('trims the credited name before it enters the footer', () => {
+    const body = commentBody('Same here', '  Nes  ')
+    expect(reporterName(body)).toBe('Nes')
+  })
 })
 
 describe('displayName', () => {

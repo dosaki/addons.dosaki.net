@@ -76,7 +76,7 @@ export function validateComment(body: string, name: string): string[] {
 
 /** The stored comment: the visitor's text plus the same credit footer issues carry. */
 export function commentBody(text: string, name: string): string {
-  return `${text.trim()}\n\n${footer(name)}\n`
+  return `${text.trim()}\n\n${footer(name.trim())}\n`
 }
 
 /** The bot's login is machinery; a footer credit is the human to show. */
