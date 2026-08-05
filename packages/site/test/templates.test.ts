@@ -316,6 +316,17 @@ describe('reportDetailPage', () => {
   it('never mentions GitHub - users need not know where reports live', () => {
     expect(reportDetailPage(withForms, aDetail).toLowerCase()).not.toContain('github')
   })
+
+  it('renders a reply form posting to the comment api', () => {
+    const html = reportDetailPage(withForms, aDetail)
+    expect(html).toContain('id="comment-root"')
+    expect(html).toContain('action="/api/comment"')
+    expect(html).toContain(`name="issue" value="${aDetail.number}"`)
+    expect(html).toContain('name="slug" value="survivalrp"')
+    expect(html).toContain('name="body"')
+    expect(html).toContain('name="reporter-name"')
+    expect(html).toContain('name="website"')
+  })
 })
 
 describe('links to the reports page', () => {
