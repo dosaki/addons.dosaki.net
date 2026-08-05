@@ -214,6 +214,16 @@ describe('route', () => {
     expect(r.headers['allow']).toBe('POST')
   })
 
+  it('defers POST /api/comment to the GitHub-aware caller', () => {
+    expect(route(site, 'POST', '/api/comment')).toEqual({ kind: 'comment' })
+  })
+
+  it('405s non-POST /api/comment with an accurate Allow', () => {
+    const r = route(site, 'GET', '/api/comment') as Response
+    expect(r.statusCode).toBe(405)
+    expect(r.headers['allow']).toBe('POST')
+  })
+
   it('serves the marcellus font base64-encoded and cached forever', () => {
     const r = route(site, 'GET', '/static/marcellus.woff2') as Response
     expect(r.statusCode).toBe(200)

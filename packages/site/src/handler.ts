@@ -79,6 +79,11 @@ export function route(site: SiteData, method: string, path: string): Response | 
     return { kind: 'vote' }
   }
 
+  if (clean === '/api/comment') {
+    if (method !== 'POST') return methodNotAllowed('POST')
+    return { kind: 'comment' }
+  }
+
   if (method !== 'GET' && method !== 'HEAD') return methodNotAllowed('GET, HEAD')
 
   if (parts.length === 0) return html(200, indexPage(site.addons, site.unavailable))
