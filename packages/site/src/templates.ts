@@ -150,9 +150,14 @@ export interface ReportDetail {
   comments: ReportComment[]
 }
 
+/** "dosaki" -> "Dosaki": GitHub logins are lowercase, the site's brand is not. */
+function capitalized(name: string): string {
+  return name.charAt(0).toUpperCase() + name.slice(1)
+}
+
 function commentBlock(comment: ReportComment): string {
   const who = comment.isDeveloper
-    ? '<strong class="dev">Developer</strong>'
+    ? `<strong class="dev">${esc(capitalized(comment.author))} (Developer)</strong>`
     : `<strong>${esc(comment.author)}</strong>`
   return `<li class="reply">
 <p class="hint">${who} &middot; ${esc(comment.createdAt.slice(0, 10))}</p>
@@ -187,11 +192,11 @@ ${replies}
 <form action="/api/comment" method="post">
 <input type="hidden" name="slug" value="${esc(addon.slug)}">
 <input type="hidden" name="issue" value="${report.number}">
-<div class="field"><label for="comment-body">Your reply</label>
-<textarea rows="4" id="comment-body" name="body" required></textarea></div>
 <div class="field"><label for="reporter-name">Name <span class="opt">optional</span></label>
 <p class="hint">so the developer knows who is replying</p>
 <input type="text" id="reporter-name" name="reporter-name" maxlength="80"></div>
+<div class="field"><label for="comment-body">Your reply</label>
+<textarea rows="4" id="comment-body" name="body" required></textarea></div>
 ${honeypotField()}
 <button type="submit" class="dl">Send reply</button>
 </form>
@@ -214,8 +219,8 @@ export function reportFormPage(addon: AddonPage, form: FormDefinition): string {
 <form action="/api/issue" method="post">
 <input type="hidden" name="slug" value="${esc(addon.slug)}">
 <input type="hidden" name="form" value="${esc(form.key)}">
-${fieldsHtml(form)}
 ${nameField(form)}
+${fieldsHtml(form)}
 ${honeypotField()}
 <button type="submit" class="dl">Send report</button>
 </form>
