@@ -34,4 +34,8 @@ export interface SiteData {
 }
 
 /** A route the router cannot answer alone because it needs a GitHub call. */
-export type Deferred = { kind: 'download'; slug: string } | { kind: 'issue' }
+export type Deferred =
+  | { kind: 'download'; slug: string }
+  | { kind: 'issue' }
+  | { kind: 'issues'; slug: string }
+  | { kind: 'vote' }

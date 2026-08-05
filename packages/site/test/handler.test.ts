@@ -175,6 +175,27 @@ describe('route', () => {
     expect(r.headers['allow']).toBe('GET, HEAD')
   })
 
+  it('defers the reports list with its slug', () => {
+    expect(route(site, 'GET', '/survivalrp/reports')).toEqual({
+      kind: 'issues',
+      slug: 'survivalrp',
+    })
+  })
+
+  it('404s the reports list for an unknown slug without calling GitHub', () => {
+    expect((route(site, 'GET', '/nope/reports') as Response).statusCode).toBe(404)
+  })
+
+  it('defers POST /api/vote rather than answering it', () => {
+    expect(route(site, 'POST', '/api/vote')).toEqual({ kind: 'vote' })
+  })
+
+  it('405s a GET to the vote route, advertising POST', () => {
+    const r = route(site, 'GET', '/api/vote') as Response
+    expect(r.statusCode).toBe(405)
+    expect(r.headers['allow']).toBe('POST')
+  })
+
   it('serves the marcellus font base64-encoded and cached forever', () => {
     const r = route(site, 'GET', '/static/marcellus.woff2') as Response
     expect(r.statusCode).toBe(200)

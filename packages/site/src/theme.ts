@@ -187,4 +187,19 @@ fieldset.field legend { color: var(--bright); font-weight: 600; padding: 0 6px; 
   padding: 16px; color: var(--accent-pale);
   box-shadow: 0 0 22px rgba(88, 198, 255, .2), inset 0 0 18px rgba(88, 198, 255, .06);
 }
+ul.reports { list-style: none; margin: 20px 0 8px; padding: 0; display: grid; gap: 14px; }
+.card.report { justify-content: space-between; }
+.card.report h2 { font-size: 16px; }
+.votes { display: flex; gap: 8px; flex: none; }
+button.vote {
+  font: inherit; font-size: 14px; cursor: pointer;
+  background: rgba(88, 198, 255, .08); color: var(--accent-soft);
+  border: 1px solid rgba(88, 198, 255, .35); border-radius: 6px; padding: 7px 12px;
+}
+button.vote:hover { border-color: var(--accent); box-shadow: 0 0 12px var(--glow); }
+.vote:disabled {
+  cursor: default; opacity: .55; border-color: var(--bronze-line); color: var(--bronze);
+  background: rgba(201, 169, 97, .05); box-shadow: none;
+}
+.vote .count { font-weight: 650; margin-left: 4px; }
 `

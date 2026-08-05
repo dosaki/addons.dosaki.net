@@ -2,11 +2,13 @@ import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { buildSite } from './build.js'
-import { appJwt, createIssue, downloadRedirect, installationToken } from './github.js'
+import { appJwt, createIssue, downloadRedirect, getIssue, installationToken, listOpenIssues, setIssueBody } from './github.js'
 import { isDeferred, route } from './handler.js'
 import type { FunctionUrlEvent, Response } from './handler.js'
-import { esc, THEME_CSS } from './templates.js'
-import { issueBody, issueTitle, validateSubmission } from './issue.js'
+import { esc, reportsPage, THEME_CSS } from './templates.js'
+import type { ReportItem } from './templates.js'
+import { issueBody, issueTitle, NAME_FIELD, validateSubmission } from './issue.js'
+import { applyVote, makeListCache, parseVoteRequest, parseVotes, sortByVotes } from './votes.js'
 import type { SiteData } from './types.js'
 
 /** Baked at deploy time by the deploy workflow. */
@@ -68,6 +70,87 @@ async function download(slug: string): Promise<Response> {
       body: 'The download is temporarily unavailable. Please try again shortly.',
       isBase64Encoded: false,
     }
+  }
+}
+
+/** One minute: fresh enough that a new vote or report shows on the next load. */
+const reportCache = makeListCache<ReportItem[]>(60_000)
+
+async function listReports(slug: string): Promise<Response> {
+  // route() already checked the slug exists before deferring here.
+  const addon = site.addons.find((a) => a.slug === slug)!
+  const repo = REPOS.get(slug)!
+
+  let reports = reportCache.get(repo, Date.now())
+  if (reports === null) {
+    try {
+      const issues = await listOpenIssues(repo, await githubToken())
+      reports = sortByVotes(
+        issues.map((i) => ({
+          number: i.number,
+          title: i.title,
+          createdAt: i.createdAt,
+          ...parseVotes(i.body),
+        })),
+      )
+      reportCache.set(repo, reports, Date.now())
+    } catch (error) {
+      console.error('list reports failed:', error instanceof Error ? error.message : String(error))
+      // The page shell is fine; only the list is missing - so 200, not 5xx.
+      return {
+        statusCode: 200,
+        headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+        body: reportsPage(addon, null),
+        isBase64Encoded: false,
+      }
+    }
+  }
+
+  return {
+    statusCode: 200,
+    headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+    body: reportsPage(addon, reports),
+    isBase64Encoded: false,
+  }
+}
+
+async function castVote(event: FunctionUrlEvent): Promise<Response> {
+  function json(statusCode: number, data: unknown): Response {
+    return {
+      statusCode,
+      headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
+      body: JSON.stringify(data),
+      isBase64Encoded: false,
+    }
+  }
+
+  let vote
+  try {
+    vote = parseVoteRequest(
+      event.headers?.['content-type'],
+      event.body ?? '',
+      event.isBase64Encoded === true,
+    )
+  } catch (error) {
+    return json(400, { errors: [error instanceof Error ? error.message : 'Unreadable request'] })
+  }
+
+  const repo = REPOS.get(vote.slug)
+  if (repo === undefined) return json(404, { errors: ['No such addon'] })
+
+  try {
+    const token = await githubToken()
+    const issue = await getIssue(repo, vote.issue, token)
+    if (issue === null || issue.isPullRequest) return json(404, { errors: ['No such report'] })
+    if (issue.state !== 'open') return json(400, { errors: ['That report is closed'] })
+
+    const body = applyVote(issue.body, vote.direction)
+    await setIssueBody(repo, vote.issue, body, token)
+    reportCache.invalidate(repo)
+    return json(200, parseVotes(body))
+  } catch (error) {
+    console.error('vote failed:', error instanceof Error ? error.message : String(error))
+    return json(502, { errors: ['The vote could not be counted just now. Please try again shortly.'] })
   }
 }
 
@@ -193,13 +276,17 @@ async function fileIssue(event: FunctionUrlEvent): Promise<Response> {
   const form = addon.forms.find((f) => f.key === submission.form)
   if (form === undefined) return problem(404, ['No such form'])
 
-  const problems = validateSubmission(form, submission.fields)
+  // The site's own credit field, not the template's: pulled out before the
+  // template fields are validated, credited in the footer, never a section.
+  const { [NAME_FIELD]: name = '', ...fields } = submission.fields
+
+  const problems = validateSubmission(form, fields, name)
   if (problems.length > 0) return problem(400, problems)
 
   try {
     const number = await createIssue(REPOS.get(addon.slug)!, await githubToken(), {
-      title: issueTitle(form, submission.fields),
-      body: issueBody(form, submission.fields),
+      title: issueTitle(form, fields),
+      body: issueBody(form, fields, name),
       labels: form.labels,
     })
     return json(201, { number })
@@ -216,5 +303,7 @@ export async function handler(event: FunctionUrlEvent): Promise<Response> {
   const result = route(site, method, path)
   if (!isDeferred(result)) return result
   if (result.kind === 'download') return download(result.slug)
+  if (result.kind === 'issues') return listReports(result.slug)
+  if (result.kind === 'vote') return castVote(event)
   return fileIssue(event)
 }

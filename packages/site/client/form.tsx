@@ -1,17 +1,8 @@
 import { createRoot } from 'react-dom/client'
 import { StrictMode, useState } from 'react'
 import { collect, type Entry } from './collect.js'
-
-/**
- * CloudFront's OAC signs origin requests with SigV4, whose signature covers a
- * hash of the body. CloudFront does not compute it - the viewer must supply
- * it, or the origin rejects the request with a 403 signature mismatch.
- * crypto.subtle needs a secure context; the site is HTTPS-only.
- */
-async function sha256Hex(body: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body))
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
-}
+import { sha256Hex } from './sign.js'
+import { wireVotes } from './vote.js'
 
 function entriesOf(form: HTMLFormElement): Entry[] {
   return Array.from(form.elements)
@@ -88,3 +79,7 @@ if (root !== null && form !== null && form !== undefined) {
   root.prepend(mount)
   createRoot(mount).render(<StrictMode><Status form={form} /></StrictMode>)
 }
+
+// One bundle serves both islands; on the reports page there is no #form-root,
+// only vote groups, and vice versa - each wiring is a no-op elsewhere.
+wireVotes()

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { issueBody, issueTitle, validateSubmission, MAX_FIELD_CHARS } from '../src/issue.js'
+import { issueBody, issueTitle, validateSubmission, MAX_FIELD_CHARS, NAME_MAX } from '../src/issue.js'
 import type { FormDefinition } from '../src/types.js'
 
 const form: FormDefinition = {
@@ -25,6 +25,31 @@ const dropdown: FormDefinition = {
     { type: 'dropdown', id: 'scope', label: 'How much?', options: ['Review', 'From scratch'], multiple: false, required: true },
   ],
 }
+
+describe('reporter name', () => {
+  it('credits the reporter in the footer when a name is given', () => {
+    expect(issueBody(form, { what: 'x' }, 'Nesingwary')).toContain(
+      '_Filed via addons.dosaki.net by Nesingwary_',
+    )
+  })
+
+  it('keeps the plain footer when no name is given', () => {
+    expect(issueBody(form, { what: 'x' }, '')).toContain('_Filed via addons.dosaki.net_\n')
+  })
+
+  it('rejects a name over the cap rather than silently truncating', () => {
+    const problems = validateSubmission(form, { what: 'x' }, 'N'.repeat(NAME_MAX + 1))
+    expect(problems.some((p) => p.includes('Name'))).toBe(true)
+  })
+
+  it('accepts a name at the cap', () => {
+    expect(validateSubmission(form, { what: 'x' }, 'N'.repeat(NAME_MAX))).toEqual([])
+  })
+
+  it('never lets the name into the title', () => {
+    expect(issueTitle(form, { what: 'It broke' })).not.toContain('Nesingwary')
+  })
+})
 
 describe('issueTitle', () => {
   it('names the form and the first required answer', () => {

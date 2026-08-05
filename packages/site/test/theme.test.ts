@@ -26,6 +26,12 @@ describe('THEME_CSS', () => {
     expect(THEME_CSS).toContain('font-display: swap')
   })
 
+  it('styles the reports list and vote buttons, including their locked state', () => {
+    expect(THEME_CSS).toContain('ul.reports')
+    expect(THEME_CSS).toContain('button.vote')
+    expect(THEME_CSS).toContain('.vote:disabled')
+  })
+
   it('files the success box under arcane blue, not the old green', () => {
     expect(THEME_CSS).not.toContain('#2d6a4f')
     expect(THEME_CSS).not.toContain('#12211a')

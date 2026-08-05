@@ -5,7 +5,19 @@ export const MAX_BODY_BYTES = 61440
 export const MAX_FIELD_CHARS = 8000
 export const TITLE_MAX = 70
 
+/**
+ * The site-injected credit field, present on every form. It is the site's
+ * own, not the template's: it is pulled out of the submission before template
+ * validation and lands in the footer, never in a section or the title.
+ */
+export const NAME_FIELD = 'reporter-name'
+export const NAME_MAX = 80
+
 const FOOTER = '_Filed via addons.dosaki.net_'
+
+function footer(name: string): string {
+  return name === '' ? FOOTER : `_Filed via addons.dosaki.net by ${name}_`
+}
 
 /** markdown blocks are prose in the form, never an answer. */
 function answerable(form: FormDefinition): FormField[] {
@@ -49,7 +61,11 @@ function compose(form: FormDefinition, fields: Record<string, string>): string {
 }
 
 /** The section shape GitHub's own issue forms produce, so both paths match. */
-export function issueBody(form: FormDefinition, fields: Record<string, string>): string {
+export function issueBody(
+  form: FormDefinition,
+  fields: Record<string, string>,
+  name = '',
+): string {
   const sections = answerable(form).map((field) => {
     const label = field.label ?? field.id ?? ''
     const value = clean(fields[field.id!])
@@ -70,14 +86,19 @@ export function issueBody(form: FormDefinition, fields: Record<string, string>):
     return `### ${label}\n\n${value}`
   })
 
-  return `${sections.join('\n\n')}\n\n${FOOTER}\n`
+  return `${sections.join('\n\n')}\n\n${footer(clean(name))}\n`
 }
 
 export function validateSubmission(
   form: FormDefinition,
   fields: Record<string, string>,
+  name = '',
 ): string[] {
   const problems: string[] = []
+
+  if (clean(name).length > NAME_MAX) {
+    problems.push(`Name is too long (limit ${NAME_MAX} characters)`)
+  }
 
   for (const field of answerable(form)) {
     const label = field.label ?? field.id ?? ''
@@ -108,7 +129,7 @@ export function validateSubmission(
     }
   }
 
-  if (Buffer.byteLength(issueBody(form, fields), 'utf8') > MAX_BODY_BYTES) {
+  if (Buffer.byteLength(issueBody(form, fields, name), 'utf8') > MAX_BODY_BYTES) {
     problems.push('The whole report is too long')
   }
 

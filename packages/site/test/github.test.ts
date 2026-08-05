@@ -1,6 +1,6 @@
 import { createPrivateKey, generateKeyPairSync, createVerify } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import { appJwt, createIssue, downloadRedirect } from '../src/github.js'
+import { appJwt, createIssue, downloadRedirect, getIssue, listOpenIssues, setIssueBody } from '../src/github.js'
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
 const pem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
@@ -104,5 +104,91 @@ describe('createIssue', () => {
     const impl = (async () => ({ ok: false, status: 410, text: async () => 'Issues are disabled' } as unknown as globalThis.Response)) as unknown as typeof fetch
     await expect(createIssue('dosaki/x', 'tok', { title: 'T', body: 'B', labels: [] }, impl))
       .rejects.toThrow(/410/)
+  })
+})
+
+function jsonFetch(status: number, body: unknown) {
+  const calls: Array<{ url: string; init?: RequestInit }> = []
+  const impl = (async (url: string, init?: RequestInit) => {
+    calls.push({ url, init })
+    return {
+      ok: status < 400,
+      status,
+      json: async () => body,
+      text: async () => JSON.stringify(body ?? ''),
+    } as unknown as globalThis.Response
+  }) as unknown as typeof fetch
+  return { impl, calls }
+}
+
+describe('listOpenIssues', () => {
+  const issue = {
+    number: 7,
+    title: 'It broke',
+    body: '**Votes:** 1👍 / 0👎',
+    created_at: '2026-03-01T00:00:00Z',
+  }
+
+  it('asks for open issues and maps what the page needs', async () => {
+    const { impl, calls } = jsonFetch(200, [issue])
+    const got = await listOpenIssues('dosaki/x', 'tok', impl)
+    expect(calls[0]!.url).toContain('/repos/dosaki/x/issues?state=open')
+    expect(got).toEqual([
+      { number: 7, title: 'It broke', body: '**Votes:** 1👍 / 0👎', createdAt: '2026-03-01T00:00:00Z' },
+    ])
+  })
+
+  it('drops pull requests, which the issues API mixes in', async () => {
+    const { impl } = jsonFetch(200, [issue, { ...issue, number: 8, pull_request: { url: 'x' } }])
+    expect((await listOpenIssues('dosaki/x', 'tok', impl)).map((i) => i.number)).toEqual([7])
+  })
+
+  it('throws with the status when GitHub refuses', async () => {
+    const { impl } = jsonFetch(500, [])
+    await expect(listOpenIssues('dosaki/x', 'tok', impl)).rejects.toThrow(/500/)
+  })
+})
+
+describe('getIssue', () => {
+  it('returns number, body, state and whether it is a pull request', async () => {
+    const { impl, calls } = jsonFetch(200, {
+      number: 7,
+      body: null,
+      state: 'open',
+      created_at: '2026-03-01T00:00:00Z',
+    })
+    const got = await getIssue('dosaki/x', 7, 'tok', impl)
+    expect(calls[0]!.url).toContain('/repos/dosaki/x/issues/7')
+    expect(got).toEqual({ number: 7, body: null, state: 'open', isPullRequest: false })
+  })
+
+  it('flags a pull request', async () => {
+    const { impl } = jsonFetch(200, { number: 7, body: null, state: 'open', pull_request: {} })
+    expect((await getIssue('dosaki/x', 7, 'tok', impl))!.isPullRequest).toBe(true)
+  })
+
+  it('returns null for an issue that does not exist', async () => {
+    const { impl } = jsonFetch(404, { message: 'Not Found' })
+    expect(await getIssue('dosaki/x', 999, 'tok', impl)).toBeNull()
+  })
+
+  it('throws with the status on any other refusal', async () => {
+    const { impl } = jsonFetch(500, {})
+    await expect(getIssue('dosaki/x', 7, 'tok', impl)).rejects.toThrow(/500/)
+  })
+})
+
+describe('setIssueBody', () => {
+  it('patches only the body', async () => {
+    const { impl, calls } = jsonFetch(200, {})
+    await setIssueBody('dosaki/x', 7, 'new body', 'tok', impl)
+    expect(calls[0]!.url).toContain('/repos/dosaki/x/issues/7')
+    expect(calls[0]!.init!.method).toBe('PATCH')
+    expect(JSON.parse(String(calls[0]!.init!.body))).toEqual({ body: 'new body' })
+  })
+
+  it('throws with the status when GitHub refuses', async () => {
+    const { impl } = jsonFetch(422, {})
+    await expect(setIssueBody('dosaki/x', 7, 'b', 'tok', impl)).rejects.toThrow(/422/)
   })
 })

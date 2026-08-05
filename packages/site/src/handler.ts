@@ -74,6 +74,11 @@ export function route(site: SiteData, method: string, path: string): Response | 
     return { kind: 'issue' }
   }
 
+  if (clean === '/api/vote') {
+    if (method !== 'POST') return methodNotAllowed('POST')
+    return { kind: 'vote' }
+  }
+
   if (method !== 'GET' && method !== 'HEAD') return methodNotAllowed('GET, HEAD')
 
   if (parts.length === 0) return html(200, indexPage(site.addons, site.unavailable))
@@ -154,6 +159,12 @@ export function route(site: SiteData, method: string, path: string): Response | 
     // 404 an unknown slug here rather than spending a GitHub call on it.
     if (find(site, parts[0]!) === undefined) return html(404, notFoundPage(site.addons))
     return { kind: 'download', slug: parts[0]! }
+  }
+
+  if (parts.length === 2 && parts[1] === 'reports') {
+    // 404 an unknown slug here rather than spending a GitHub call on it.
+    if (find(site, parts[0]!) === undefined) return html(404, notFoundPage(site.addons))
+    return { kind: 'issues', slug: parts[0]! }
   }
 
   if (parts.length === 2 && parts[1] === 'report') {
