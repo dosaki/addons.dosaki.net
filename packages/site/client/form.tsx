@@ -3,6 +3,7 @@ import { StrictMode, useState } from 'react'
 import { collect, type Entry } from './collect.js'
 import { sha256Hex } from './sign.js'
 import { wireVotes } from './vote.js'
+import { ensureName, prefillName } from './name.js'
 
 function entriesOf(form: HTMLFormElement): Entry[] {
   return Array.from(form.elements)
@@ -23,6 +24,7 @@ function Status({ form }: { form: HTMLFormElement }) {
 
   form.onsubmit = (event) => {
     event.preventDefault()
+    ensureName(form)
     setProblems([])
     setSending(true)
     const data = new FormData(form)
@@ -71,6 +73,10 @@ function Status({ form }: { form: HTMLFormElement }) {
   }
   return sending ? <p className="hint">Sending…</p> : null
 }
+
+// Pre-fill runs on any page with a name field - the report form and the
+// report detail page's reply form alike; a page without one is a no-op.
+prefillName()
 
 const root = document.getElementById('form-root')
 const form = root?.querySelector('form')

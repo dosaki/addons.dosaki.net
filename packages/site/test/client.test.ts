@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { collect } from '../client/collect.js'
 import { voteKey, votePayload } from '../client/vote.js'
+import { resolveSubmitName } from '../client/name.js'
 
 describe('collect', () => {
   it('joins repeated names, as a checkbox group produces', () => {
@@ -42,5 +43,29 @@ describe('votePayload', () => {
       issue: 7,
       direction: 'up',
     })
+  })
+})
+
+describe('resolveSubmitName', () => {
+  const generate = () => 'Crimson Brave Otter'
+
+  it('keeps a typed name and persists it', () => {
+    expect(resolveSubmitName('  Nes  ', null, generate))
+      .toEqual({ name: 'Nes', store: true })
+  })
+
+  it('reuses the stored pseudonym for a blank field without re-storing', () => {
+    expect(resolveSubmitName('', 'Azure Gentle Sofia', generate))
+      .toEqual({ name: 'Azure Gentle Sofia', store: false })
+  })
+
+  it('mints and persists a pseudonym on the first blank submit', () => {
+    expect(resolveSubmitName('   ', null, generate))
+      .toEqual({ name: 'Crimson Brave Otter', store: true })
+  })
+
+  it('treats an empty stored value as absent', () => {
+    expect(resolveSubmitName('', '', generate))
+      .toEqual({ name: 'Crimson Brave Otter', store: true })
   })
 })
