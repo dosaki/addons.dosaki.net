@@ -7,7 +7,7 @@ import { isDeferred, route } from './handler.js'
 import type { FunctionUrlEvent, Response } from './handler.js'
 import { esc, notFoundPage, reportDetailPage, reportsPage, THEME_CSS } from './templates.js'
 import type { ReportDetail, ReportItem } from './templates.js'
-import { issueBody, issueTitle, NAME_FIELD, reporterName, stripFooter, validateSubmission } from './issue.js'
+import { HONEYPOT_FIELD, issueBody, issueTitle, NAME_FIELD, reporterName, stripFooter, validateSubmission } from './issue.js'
 import { renderIssueMarkdown } from './render.js'
 import { applyVote, makeListCache, parseVoteRequest, parseVotes, sortByVotes, stripVotesLine } from './votes.js'
 import type { SiteData } from './types.js'
@@ -184,6 +184,10 @@ async function castVote(event: FunctionUrlEvent): Promise<Response> {
     return json(400, { errors: [error instanceof Error ? error.message : 'Unreadable request'] })
   }
 
+  // A filled decoy field is a bot. Answer success so it learns nothing,
+  // and spend no GitHub call on it.
+  if (vote.website !== '') return json(200, { up: 0, down: 0 })
+
   const repo = REPOS.get(vote.slug)
   if (repo === undefined) return json(404, { errors: ['No such addon'] })
 
@@ -327,7 +331,10 @@ async function fileIssue(event: FunctionUrlEvent): Promise<Response> {
 
   // The site's own credit field, not the template's: pulled out before the
   // template fields are validated, credited in the footer, never a section.
-  const { [NAME_FIELD]: name = '', ...fields } = submission.fields
+  const { [NAME_FIELD]: name = '', [HONEYPOT_FIELD]: website = '', ...fields } = submission.fields
+  // A filled decoy field is a bot. Answer success so it learns nothing,
+  // and spend no GitHub call on it.
+  if (website !== '') return json(201, { number: 0 })
 
   const problems = validateSubmission(form, fields, name)
   if (problems.length > 0) return problem(400, problems)
