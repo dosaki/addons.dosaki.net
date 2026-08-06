@@ -49,7 +49,9 @@ export function addonPage(addon: AddonPage): string {
   return shell(
     `${addon.name} - addons.dosaki.net`,
     `${siteHeader(addon)}
-<div class="wrap"><div class="cols">
+<div class="wrap">
+<p class="crumb"><a href="/">&larr; All addons</a></p>
+<div class="cols">
 ${tocList(addon.headings)}
 <main>${addon.html}</main>
 </div></div>`,
