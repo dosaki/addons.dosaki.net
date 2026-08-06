@@ -72,6 +72,11 @@ describe('addonPage', () => {
     expect(addonPage(addon)).not.toContain('<script')
   })
 
+  it('links back to the addon list', () => {
+    const html = addonPage(addon)
+    expect(html).toContain('<p class="crumb"><a href="/">&larr; All addons</a></p>')
+  })
+
   it('escapes the tagline rather than trusting it', () => {
     const evil = { ...addon, tagline: '<img src=x onerror=alert(1)>' }
     const html = addonPage(evil)
