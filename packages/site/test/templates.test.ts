@@ -426,7 +426,11 @@ describe('addon page metadata', () => {
   })
 
   it('is indexable, unlike every report route', () => {
-    expect(addonPage(addon)).not.toContain('name="robots"')
+    const html = addonPage(addon)
+    expect(html).not.toContain('name="robots"')
+    // Proves headTags actually ran and chose to omit robots, rather than
+    // the page having failed to render at all.
+    expect(html).toContain('<title>SurvivalRP - World of Warcraft Addon by Dosaki</title>')
   })
 
   it('canonicalises to the addon path', () => {
@@ -439,6 +443,18 @@ describe('addon page metadata', () => {
     expect(addonPage(addon)).toContain(
       '<link rel="icon" type="image/svg+xml" href="/assets/survivalrp/1.2.2/icon.svg">',
     )
+  })
+
+  it('falls back to the site favicon when the addon has none', () => {
+    // In this checkout the site has no logo.svg either, so the fallback
+    // resolves to null and no <link rel="icon"> is emitted at all - this
+    // still pins the addon.icon === undefined branch in addonMeta.
+    const { icon, ...withoutIcon } = addon
+    const html = addonPage(withoutIcon as AddonPage)
+    expect(html).not.toContain('<link rel="icon"')
+    // Proves the page actually rendered through headTags, rather than the
+    // absence being an artefact of a blank page.
+    expect(html).toContain('<title>SurvivalRP - World of Warcraft Addon by Dosaki</title>')
   })
 
   it("uses the addon's generated card as the preview when the bundle has one", () => {
@@ -489,7 +505,11 @@ describe('index page metadata', () => {
   })
 
   it('is indexable', () => {
-    expect(indexPage([addon], [])).not.toContain('name="robots"')
+    const html = indexPage([addon], [])
+    expect(html).not.toContain('name="robots"')
+    // Proves headTags actually ran and chose to omit robots, rather than
+    // the page having failed to render at all.
+    expect(html).toContain(`<link rel="canonical" href="${SITE_ORIGIN}/">`)
   })
 
   it('carries the site name as the og:site_name on every page', () => {
