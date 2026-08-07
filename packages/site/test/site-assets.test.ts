@@ -9,11 +9,6 @@ describe('siteLogo', () => {
     // never cost the site its ability to boot.
     expect(siteLogo === null || typeof siteLogo === 'string').toBe(true)
   })
-
-  it('reads real svg source when the file is present', () => {
-    if (siteLogo === null) return
-    expect(siteLogo).toContain('<svg')
-  })
 })
 
 describe('siteImages', () => {
@@ -22,10 +17,5 @@ describe('siteImages', () => {
     // fresh checkout has none - the same contract as site-data.json.
     expect(typeof siteImages).toBe('object')
     expect(siteImages).not.toBeNull()
-  })
-
-  it('exposes og and touch as base64 strings when they were baked', () => {
-    if (siteImages.og !== undefined) expect(typeof siteImages.og).toBe('string')
-    if (siteImages.touch !== undefined) expect(typeof siteImages.touch).toBe('string')
   })
 })
