@@ -1,5 +1,8 @@
 import { clientBundle } from './client-bundle.js'
 import { marcellusFont } from './font.js'
+import { robotsTxt, sitemapXml } from './meta.js'
+import { siteLogo } from './site-icon.js'
+import { siteImages } from './site-images.js'
 import {
   addonPage,
   indexPage,
@@ -28,6 +31,8 @@ export interface FunctionUrlEvent {
 
 const HTML = { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }
 const IMMUTABLE = 'public, max-age=31536000, immutable'
+/** Not version-scoped, so it must revalidate rather than cache forever. */
+const HOURLY = 'public, max-age=3600'
 
 const CONTENT_TYPES: Record<string, string> = {
   webp: 'image/webp',
@@ -108,6 +113,58 @@ export function route(site: SiteData, method: string, path: string): Response | 
       statusCode: 200,
       headers: { 'content-type': 'font/woff2', 'cache-control': IMMUTABLE },
       body: marcellusFont,
+      isBase64Encoded: true,
+    }
+  }
+
+  if (clean === '/robots.txt') {
+    return {
+      statusCode: 200,
+      headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': HOURLY },
+      body: robotsTxt(),
+      isBase64Encoded: false,
+    }
+  }
+
+  if (clean === '/sitemap.xml') {
+    return {
+      statusCode: 200,
+      headers: { 'content-type': 'application/xml; charset=utf-8', 'cache-control': HOURLY },
+      body: sitemapXml(site.addons),
+      isBase64Encoded: false,
+    }
+  }
+
+  if (clean === '/static/logo.svg') {
+    if (siteLogo === null) return html(404, notFoundPage(site.addons))
+    return {
+      statusCode: 200,
+      headers: { 'content-type': 'image/svg+xml', 'cache-control': HOURLY },
+      body: siteLogo,
+      isBase64Encoded: false,
+    }
+  }
+
+  if (clean === '/static/og.png' || clean === '/static/touch-icon.png') {
+    const png = clean === '/static/og.png' ? siteImages.og : siteImages.touch
+    if (png === undefined) return html(404, notFoundPage(site.addons))
+    return {
+      statusCode: 200,
+      headers: { 'content-type': 'image/png', 'cache-control': HOURLY },
+      body: png,
+      isBase64Encoded: true,
+    }
+  }
+
+  if (clean === '/favicon.ico') {
+    // Browsers request this unprompted and would otherwise be handed the
+    // 404 HTML page. PNG bytes at a .ico URL are accepted by every current
+    // browser, so the touch icon does the job without a second asset.
+    if (siteImages.touch === undefined) return html(404, notFoundPage(site.addons))
+    return {
+      statusCode: 200,
+      headers: { 'content-type': 'image/png', 'cache-control': HOURLY },
+      body: siteImages.touch,
       isBase64Encoded: true,
     }
   }

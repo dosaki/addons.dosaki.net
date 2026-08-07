@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { headTags, jsonLd, summarize, SITE_ORIGIN } from '../src/meta.js'
+import { headTags, jsonLd, robotsTxt, sitemapXml, summarize, SITE_ORIGIN } from '../src/meta.js'
 import type { PageMeta } from '../src/meta.js'
+import type { AddonPage } from '../src/types.js'
 
 const base: PageMeta = {
   title: 'SurvivalRP - World of Warcraft Addon by Dosaki',
@@ -112,5 +113,54 @@ describe('summarize', () => {
 
   it('leaves a short body untouched', () => {
     expect(summarize('Short.')).toBe('Short.')
+  })
+})
+
+const stub = (slug: string): AddonPage => ({
+  slug,
+  name: slug,
+  tagline: 't',
+  version: '1',
+  html: '',
+  headings: [],
+  forms: [],
+  assets: new Map(),
+})
+
+describe('robotsTxt', () => {
+  it('points crawlers at the sitemap', () => {
+    expect(robotsTxt()).toContain(`Sitemap: ${SITE_ORIGIN}/sitemap.xml`)
+  })
+
+  it('keeps crawlers off the routes that cost a GitHub API call', () => {
+    // Every report route renders live from the API with no cache, so an
+    // unrestricted crawl would burn the installation's rate limit.
+    // "/*/report" is a prefix match and covers /reports and /reports/:n too.
+    expect(robotsTxt()).toContain('Disallow: /*/report')
+    expect(robotsTxt()).toContain('Disallow: /api/')
+  })
+
+  it('leaves the addon pages crawlable', () => {
+    expect(robotsTxt()).not.toContain('Disallow: /\n')
+  })
+})
+
+describe('sitemapXml', () => {
+  it('lists the root and every available addon', () => {
+    const xml = sitemapXml([stub('survivalrp'), stub('housing-herald')])
+    expect(xml).toContain(`<loc>${SITE_ORIGIN}/</loc>`)
+    expect(xml).toContain(`<loc>${SITE_ORIGIN}/survivalrp</loc>`)
+    expect(xml).toContain(`<loc>${SITE_ORIGIN}/housing-herald</loc>`)
+  })
+
+  it('lists no report route, since they are all disallowed', () => {
+    expect(sitemapXml([stub('survivalrp')])).not.toContain('/report')
+  })
+
+  it('is a well-formed urlset', () => {
+    const xml = sitemapXml([])
+    expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true)
+    expect(xml).toContain('xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"')
+    expect(xml.trimEnd().endsWith('</urlset>')).toBe(true)
   })
 })

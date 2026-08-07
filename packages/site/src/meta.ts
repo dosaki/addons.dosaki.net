@@ -1,5 +1,6 @@
 import { esc } from './html.js'
 import { BG } from './theme.js'
+import type { AddonPage } from './types.js'
 
 /**
  * Also hardcoded as SITE_BASE in packages/bundle/src/cli.ts. The duplication
@@ -132,4 +133,43 @@ export function summarize(markdown: string, max = 155): string {
   const cut = flat.slice(0, max)
   const space = cut.lastIndexOf(' ')
   return `${(space > 0 ? cut.slice(0, space) : cut).trimEnd()}...`
+}
+
+/**
+ * Report routes are disallowed rather than merely noindexed because they
+ * render live from the GitHub API on every request with no cache: the cost
+ * being avoided is API quota, and only a Disallow prevents the fetch. The
+ * trade-off is that Google never sees the noindex meta on those pages, so a
+ * report URL linked from elsewhere can still surface as a bare URL. The meta
+ * tag stays as a second line of defence for crawlers that ignore this file.
+ *
+ * The wildcard report rule is a prefix match, so that one line covers all
+ * four shapes - report, report with a form key, reports, and a numbered
+ * report - while matching neither the root nor an addon page. (Described
+ * rather than quoted: the pattern contains the sequence that would close
+ * this comment.)
+ */
+export function robotsTxt(): string {
+  return `User-agent: *
+Disallow: /api/
+Disallow: /*/report
+
+Sitemap: ${SITE_ORIGIN}/sitemap.xml
+`
+}
+
+/**
+ * Built from the same addon list the index page renders, so the two cannot
+ * drift. No lastmod: the site has no modification date it can honestly
+ * publish. Unavailable addons are absent from `addons` already, and so are
+ * absent here - they have no page to crawl.
+ */
+export function sitemapXml(addons: AddonPage[]): string {
+  const urls = [`${SITE_ORIGIN}/`, ...addons.map((a) => `${SITE_ORIGIN}/${a.slug}`)]
+  const entries = urls.map((url) => `  <url><loc>${esc(url)}</loc></url>`).join('\n')
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${entries}
+</urlset>
+`
 }
