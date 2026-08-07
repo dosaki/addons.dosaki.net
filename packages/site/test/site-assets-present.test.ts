@@ -6,10 +6,10 @@ vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>()
   return {
     ...actual,
-    readFileSync: vi.fn((path: string, ...rest: unknown[]) => {
+    readFileSync: vi.fn((path: string, encoding?: BufferEncoding) => {
       if (String(path).endsWith('logo.svg')) return '<svg viewBox="0 0 10 10"></svg>'
       if (String(path).endsWith('site-images.json')) return '{"og":"QUJD","touch":"REVG"}'
-      return (actual.readFileSync as never)(path, ...rest)
+      return actual.readFileSync(path, encoding)
     }),
   }
 })
