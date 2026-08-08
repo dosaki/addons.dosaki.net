@@ -52,6 +52,11 @@ jobs:
                 throw new Error('malformed entry: ' + JSON.stringify(e).slice(0, 120));
               }
             }
+            const imgs = JSON.parse(require('fs').readFileSync('packages/site/src/site-images.json','utf8'));
+            for (const k of Object.keys(imgs)) {
+              if (k !== 'og' && k !== 'touch') throw new Error('unexpected key in site-images.json: ' + k);
+              if (typeof imgs[k] !== 'string') throw new Error(k + ' is not a base64 string');
+            }
             console.log('site-data.json OK,', d.length, 'addon(s)');
           "
 
@@ -79,6 +84,12 @@ jobs:
           cp packages/site/src/site-data.json dist/pkg/
           # Read at runtime by font.ts, same pattern as site-data.json above.
           cp packages/site/static/marcellus-latin.woff2 dist/pkg/
+          # Read at runtime by site-images.ts. Always written by bake.ts,
+          # even when there is no logo - in which case it is "{}".
+          cp packages/site/src/site-images.json dist/pkg/
+          # Served raw at /static/logo.svg and read by site-icon.ts. Optional:
+          # without it the pages with no addon in scope go without a favicon.
+          cp packages/site/static/logo.svg dist/pkg/ || echo 'no logo.svg; the site runs without one'
           cd dist/pkg && zip -qr ../lambda.zip .
           ls -lh ../lambda.zip
 

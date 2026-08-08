@@ -233,3 +233,35 @@ describe('route', () => {
     expect(r.body.startsWith('d09GMg')).toBe(true)
   })
 })
+
+describe('crawler routes', () => {
+  it('serves robots.txt as plain text', () => {
+    const r = route(site, 'GET', '/robots.txt') as Response
+    expect(r.statusCode).toBe(200)
+    expect(r.headers['content-type']).toContain('text/plain')
+    expect(r.body).toContain('Sitemap:')
+  })
+
+  it('serves a sitemap naming every addon', () => {
+    const r = route(site, 'GET', '/sitemap.xml') as Response
+    expect(r.statusCode).toBe(200)
+    expect(r.headers['content-type']).toContain('xml')
+    expect(r.body).toContain('/survivalrp</loc>')
+  })
+
+  it('lets both cache for an hour, unlike HTML', () => {
+    for (const path of ['/robots.txt', '/sitemap.xml']) {
+      expect((route(site, 'GET', path) as Response).headers['cache-control']).toBe(
+        'public, max-age=3600',
+      )
+    }
+  })
+})
+
+// The site asset routes (/static/logo.svg, /static/og.png,
+// /static/touch-icon.png, /favicon.ico) are covered in
+// site-asset-routes-present.test.ts (source mocked present) and
+// site-asset-routes-absent.test.ts (source mocked absent), each stating its
+// precondition explicitly with vi.mock rather than inheriting it from
+// whether this checkout happens to have static/logo.svg or a baked
+// site-images.json.

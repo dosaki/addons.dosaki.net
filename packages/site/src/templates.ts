@@ -1,5 +1,16 @@
 import { fieldsHtml } from './forms-html.js'
 import { esc } from './html.js'
+import {
+  headTags,
+  jsonLd,
+  OG_KEY,
+  SITE_NAME,
+  SITE_ORIGIN,
+  TOUCH_KEY,
+} from './meta.js'
+import type { PageMeta } from './meta.js'
+import { siteLogo } from './site-icon.js'
+import { siteImages } from './site-images.js'
 import { THEME_CSS } from './theme.js'
 import type { AddonPage, FormDefinition, Heading } from './types.js'
 
@@ -10,17 +21,66 @@ export function assetUrl(slug: string, version: string, key: string): string {
   return `/assets/${slug}/${version}/${key}`
 }
 
-function shell(title: string, body: string): string {
+function shell(meta: PageMeta, body: string): string {
   return `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)}</title>
+${headTags(meta)}
 <style>${THEME_CSS}</style>
 </head><body>
 ${body}
 <footer class="site"><div class="wrap">addons.dosaki.net &middot; &copy; ${new Date().getUTCFullYear()} Dosaki</div></footer>
 </body></html>`
+}
+
+/** What a page falls back to when no addon is in scope, or the addon has none. */
+function siteCard(): { image: string | null; imageAlt: string; icon: string | null; touchIcon: string | null } {
+  return {
+    image: siteImages.og === undefined ? null : `${SITE_ORIGIN}/static/og.png`,
+    imageAlt: SITE_NAME,
+    icon: siteLogo === null ? null : '/static/logo.svg',
+    touchIcon: siteImages.touch === undefined ? null : '/static/touch-icon.png',
+  }
+}
+
+/** The page-specific half of a PageMeta; the image half is filled in below. */
+interface PageCopy {
+  title: string
+  description: string
+  path: string | null
+  noindex: boolean
+}
+
+/**
+ * Metadata for a page that belongs to an addon: its own logo as the favicon
+ * and its generated card as the preview. Each falls back to the site's own
+ * when the addon has no icon, or when its bundle was built before preview
+ * generation existed - an already-released addon must not end up pointing
+ * at an asset that is not in its zip.
+ */
+function addonMeta(addon: AddonPage, copy: PageCopy): PageMeta {
+  const fallback = siteCard()
+  const hasCard = addon.assets.has(OG_KEY)
+  return {
+    ...copy,
+    image: hasCard
+      ? SITE_ORIGIN + assetUrl(addon.slug, addon.version, OG_KEY)
+      : fallback.image,
+    imageAlt: hasCard ? `${addon.name} logo` : fallback.imageAlt,
+    icon:
+      addon.icon === undefined
+        ? fallback.icon
+        : assetUrl(addon.slug, addon.version, addon.icon),
+    touchIcon: addon.assets.has(TOUCH_KEY)
+      ? assetUrl(addon.slug, addon.version, TOUCH_KEY)
+      : fallback.touchIcon,
+  }
+}
+
+/** Metadata for a page with no addon in scope. */
+function siteMeta(copy: PageCopy): PageMeta {
+  return { ...copy, ...siteCard() }
 }
 
 function tocList(headings: Heading[]): string {
@@ -45,16 +105,43 @@ function siteHeader(addon: AddonPage): string {
 </div></div></header>`
 }
 
+/** Structured data, so a search result can show more than a blue link. */
+function addonLd(addon: AddonPage): string {
+  const data: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: addon.name,
+    description: addon.tagline,
+    applicationCategory: 'GameApplication',
+    operatingSystem: 'World of Warcraft',
+    softwareVersion: addon.version,
+    url: `${SITE_ORIGIN}/${addon.slug}`,
+    author: { '@type': 'Person', name: 'Dosaki' },
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  }
+  if (addon.assets.has(OG_KEY)) {
+    data['image'] = SITE_ORIGIN + assetUrl(addon.slug, addon.version, OG_KEY)
+  }
+  return jsonLd(data)
+}
+
 export function addonPage(addon: AddonPage): string {
   return shell(
-    `${addon.name} - addons.dosaki.net`,
+    addonMeta(addon, {
+      // The words a player actually searches for, not the bare domain.
+      title: `${addon.name} - World of Warcraft Addon by Dosaki`,
+      description: `${addon.tagline} A free World of Warcraft addon by Dosaki.`,
+      path: `/${addon.slug}`,
+      noindex: false,
+    }),
     `${siteHeader(addon)}
 <div class="wrap">
 <p class="crumb"><a href="/">&larr; All addons</a></p>
 <div class="cols">
 ${tocList(addon.headings)}
 <main>${addon.html}</main>
-</div></div>`,
+</div></div>
+${addonLd(addon)}`,
   )
 }
 
@@ -65,14 +152,19 @@ export function reportListPage(addon: AddonPage): string {
       : `<div class="cards">${addon.forms
           .map(
             (f) => `<a class="card" href="/${esc(addon.slug)}/report/${esc(f.key)}">
-<div><h2>${esc(f.name)}</h2><p>${esc(f.description)}</p></div></a>`,
+<div><h2>${esc(f.name)}</h2><p>${esc(f.description ?? '')}</p></div></a>`,
           )
           .join('')}</div>
 <p class="hint">No account needed - reports go straight to the developer.</p>
 <p class="hint"><a href="/${esc(addon.slug)}/reports">See what's already been reported</a> - it may save you the typing.</p>`
 
   return shell(
-    `Report - ${addon.name}`,
+    addonMeta(addon, {
+      title: `Report a problem - ${addon.name}`,
+      description: `Report a bug or suggest a feature for ${addon.name}. No account needed.`,
+      path: `/${addon.slug}/report`,
+      noindex: true,
+    }),
     `${siteHeader(addon)}<div class="wrap"><h1 class="page">Report a problem</h1>${body}</div>`,
   )
 }
@@ -107,7 +199,12 @@ export function reportsPage(addon: AddonPage, reports: ReportItem[] | null): str
 <script src="/static/form.js" defer></script>`
 
   return shell(
-    `Reports - ${addon.name}`,
+    addonMeta(addon, {
+      title: `Reports - ${addon.name}`,
+      description: `Open reports for ${addon.name}, and what other players have voted on.`,
+      path: `/${addon.slug}/reports`,
+      noindex: true,
+    }),
     `${siteHeader(addon)}<div class="wrap"><h1 class="page">Existing reports</h1>${body}</div>`,
   )
 }
@@ -144,6 +241,8 @@ export interface ReportDetail {
   number: number
   title: string
   createdAt: string
+  /** One flat line derived from the body, for the meta description. */
+  summary: string
   up: number
   down: number
   /** Already rendered AND sanitized by renderIssueMarkdown - inserted as-is. */
@@ -174,7 +273,12 @@ export function reportDetailPage(addon: AddonPage, report: ReportDetail): string
       : `<ul class="replies">${report.comments.map(commentBlock).join('\n')}</ul>`
 
   return shell(
-    `${report.title} - ${addon.name}`,
+    addonMeta(addon, {
+      title: `${report.title} - ${addon.name}`,
+      description: report.summary,
+      path: `/${addon.slug}/reports/${report.number}`,
+      noindex: true,
+    }),
     `${siteHeader(addon)}
 <div class="wrap">
 <p class="crumb"><a href="/${esc(addon.slug)}/reports">&larr; All reports</a></p>
@@ -211,7 +315,15 @@ ${honeypotField()}
 
 export function reportFormPage(addon: AddonPage, form: FormDefinition): string {
   return shell(
-    `${form.name} - ${addon.name}`,
+    addonMeta(addon, {
+      title: `${form.name} - ${addon.name}`,
+      description:
+        (form.description ?? '') === ''
+          ? `Report a bug or suggest a feature for ${addon.name}. No account needed.`
+          : form.description,
+      path: `/${addon.slug}/report/${form.key}`,
+      noindex: true,
+    }),
     `${siteHeader(addon)}
 <div class="wrap">
 <p class="crumb"><a href="/${esc(addon.slug)}/report">&larr; All reports</a></p>
@@ -251,7 +363,13 @@ export function indexPage(addons: AddonPage[], unavailable: string[]): string {
     .map((slug) => `<div class="card off"><div><h2>${esc(slug)}</h2><p>Temporarily unavailable.</p></div></div>`)
     .join('')
   return shell(
-    'addons.dosaki.net',
+    siteMeta({
+      title: "Dosaki's World of Warcraft Addons",
+      description:
+        'Free World of Warcraft addons by Dosaki - download, read the docs, and report issues without an account.',
+      path: '/',
+      noindex: false,
+    }),
     `<header class="site"><div class="wrap"><div class="row">
 <div><h1>Addons</h1><p>World of Warcraft addons by Dosaki.</p></div>
 </div></div></header>
@@ -261,10 +379,28 @@ export function indexPage(addons: AddonPage[], unavailable: string[]): string {
 
 export function methodNotAllowedPage(): string {
   return shell(
-    'Method not allowed - addons.dosaki.net',
+    siteMeta({
+      title: 'Method not allowed - addons.dosaki.net',
+      description: 'This site only answers GET requests.',
+      // A 405 has no canonical address of its own.
+      path: null,
+      noindex: true,
+    }),
     `<header class="site"><div class="wrap"><div class="row">
 <div><h1>Method not allowed</h1><p>This site only answers GET requests.</p></div>
 </div></div></header>`,
+  )
+}
+
+/**
+ * The plain pages index.ts returns for a no-JavaScript form POST. They are
+ * responses to a POST, so they have no canonical address and are never
+ * indexed - but they still deserve a title and a favicon.
+ */
+export function messagePage(title: string, description: string, body: string): string {
+  return shell(
+    siteMeta({ title, description, path: null, noindex: true }),
+    `<div class="wrap">${body}</div>`,
   )
 }
 
@@ -273,7 +409,12 @@ export function notFoundPage(addons: AddonPage[]): string {
     .map((a) => `<li><a href="/${esc(a.slug)}">${esc(a.name)}</a></li>`)
     .join('')
   return shell(
-    'Not found - addons.dosaki.net',
+    siteMeta({
+      title: 'Not found - addons.dosaki.net',
+      description: 'No addon lives at that address.',
+      path: null,
+      noindex: true,
+    }),
     `<header class="site"><div class="wrap"><div class="row">
 <div><h1>Not found</h1><p>No addon lives at that address.</p></div>
 </div></div></header>

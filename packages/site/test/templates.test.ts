@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { addonPage, assetUrl, indexPage, notFoundPage, reportDetailPage, reportFormPage, reportListPage, reportsPage } from '../src/templates.js'
 import type { AddonPage, FormDefinition } from '../src/types.js'
+import { OG_KEY, SITE_NAME, SITE_ORIGIN, TOUCH_KEY } from '../src/meta.js'
 
 const addon: AddonPage = {
   slug: 'survivalrp',
@@ -68,8 +69,11 @@ describe('addonPage', () => {
     expect(html).not.toContain('/assets/survivalrp/1.2.2/undefined')
   })
 
-  it('ships no script tags, since the site has no client JS', () => {
-    expect(addonPage(addon)).not.toContain('<script')
+  it('ships no client-executed script - only the JSON-LD data block', () => {
+    const html = addonPage(addon)
+    expect(html).not.toContain('<script src')
+    expect((html.match(/<script/g) ?? []).length).toBe(1)
+    expect(html).toContain('<script type="application/ld+json">')
   })
 
   it('links back to the addon list', () => {
@@ -256,6 +260,7 @@ const aDetail = {
   number: 7,
   title: 'It broke',
   createdAt: '2026-03-01T12:00:00Z',
+  summary: 'The HUD vanished.',
   up: 3,
   down: 1,
   html: '<h3>What happened</h3><p>The HUD vanished</p>',
@@ -385,13 +390,173 @@ describe('the injected Name field', () => {
 })
 
 describe('the rest of the site stays script-free', () => {
-  it('addon page has no script', () => {
-    expect(addonPage(withForms)).not.toContain('<script')
+  it('addon page has no client-executed script, only the JSON-LD data block', () => {
+    const html = addonPage(withForms)
+    expect(html).not.toContain('<script src')
+    expect((html.match(/<script/g) ?? []).length).toBe(1)
   })
   it('index has no script', () => {
     expect(indexPage([withForms], [])).not.toContain('<script')
   })
   it('form list has no script', () => {
     expect(reportListPage(withForms)).not.toContain('<script')
+  })
+})
+
+/** An addon whose bundle carries the bake-time preview images. */
+const withPreviews: AddonPage = {
+  ...addon,
+  assets: new Map<string, Uint8Array>([
+    [OG_KEY, new Uint8Array([1])],
+    [TOUCH_KEY, new Uint8Array([2])],
+  ]),
+}
+
+describe('addon page metadata', () => {
+  it('puts the addon and the searchable phrase in the title', () => {
+    expect(addonPage(addon)).toContain(
+      '<title>SurvivalRP - World of Warcraft Addon by Dosaki</title>',
+    )
+  })
+
+  it('uses the manifest tagline as the description', () => {
+    expect(addonPage(addon)).toContain(
+      'content="Optional survival mechanics for role-play. A free World of Warcraft addon by Dosaki."',
+    )
+  })
+
+  it('is indexable, unlike every report route', () => {
+    const html = addonPage(addon)
+    expect(html).not.toContain('name="robots"')
+    // Proves headTags actually ran and chose to omit robots, rather than
+    // the page having failed to render at all.
+    expect(html).toContain('<title>SurvivalRP - World of Warcraft Addon by Dosaki</title>')
+  })
+
+  it('canonicalises to the addon path', () => {
+    expect(addonPage(addon)).toContain(
+      `<link rel="canonical" href="${SITE_ORIGIN}/survivalrp">`,
+    )
+  })
+
+  it("uses the addon's own logo as the favicon", () => {
+    expect(addonPage(addon)).toContain(
+      '<link rel="icon" type="image/svg+xml" href="/assets/survivalrp/1.2.2/icon.svg">',
+    )
+  })
+
+  // The "falls back to the site favicon when the addon has none" and "falls
+  // back to the site card when the bundle predates preview generation"
+  // cases live in templates-site-asset-absent.test.ts, which mocks siteLogo
+  // and siteImages absent explicitly rather than relying on this checkout
+  // not (yet) having static/logo.svg or a baked site-images.json.
+
+  it("uses the addon's generated card as the preview when the bundle has one", () => {
+    const html = addonPage(withPreviews)
+    expect(html).toContain(
+      `<meta property="og:image" content="${SITE_ORIGIN}/assets/survivalrp/1.2.2/og.png">`,
+    )
+    expect(html).toContain('content="SurvivalRP logo"')
+    expect(html).toContain(
+      '<link rel="apple-touch-icon" href="/assets/survivalrp/1.2.2/touch-icon.png">',
+    )
+  })
+
+  it('describes itself to search engines as a free game application', () => {
+    const html = addonPage(addon)
+    expect(html).toContain('<script type="application/ld+json">')
+    expect(html).toContain('"@type":"SoftwareApplication"')
+    expect(html).toContain('"name":"SurvivalRP"')
+    expect(html).toContain('"softwareVersion":"1.2.2"')
+    expect(html).toContain('"price":"0"')
+  })
+})
+
+describe('index page metadata', () => {
+  it('names the addons in the title instead of the bare domain', () => {
+    expect(indexPage([addon], [])).toContain(
+      "<title>Dosaki's World of Warcraft Addons</title>",
+    )
+  })
+
+  it('canonicalises to the root', () => {
+    expect(indexPage([addon], [])).toContain(
+      `<link rel="canonical" href="${SITE_ORIGIN}/">`,
+    )
+  })
+
+  it('is indexable', () => {
+    const html = indexPage([addon], [])
+    expect(html).not.toContain('name="robots"')
+    // Proves headTags actually ran and chose to omit robots, rather than
+    // the page having failed to render at all.
+    expect(html).toContain(`<link rel="canonical" href="${SITE_ORIGIN}/">`)
+  })
+
+  it('carries the site name as the og:site_name on every page', () => {
+    expect(indexPage([addon], [])).toContain(
+      `<meta property="og:site_name" content="${SITE_NAME}">`,
+    )
+  })
+})
+
+describe('report route metadata', () => {
+  const form: FormDefinition = {
+    key: 'bug_report',
+    name: 'Bug report',
+    description: 'Something is not working.',
+    labels: [],
+    fields: [],
+  }
+
+  it('keeps every report route out of the index', () => {
+    for (const html of [
+      reportListPage(addon),
+      reportFormPage(addon, form),
+      reportsPage(addon, []),
+      reportDetailPage(addon, {
+        number: 7,
+        title: 'Food not detected',
+        createdAt: '2026-01-02T00:00:00Z',
+        up: 0,
+        down: 0,
+        html: '<p>x</p>',
+        summary: 'Bread does not restore hunger.',
+        reporter: null,
+        comments: [],
+      }),
+    ]) {
+      expect(html).toContain('<meta name="robots" content="noindex, follow">')
+    }
+  })
+
+  it('titles a report with its own subject', () => {
+    const html = reportDetailPage(addon, {
+      number: 7,
+      title: 'Food not detected',
+      createdAt: '2026-01-02T00:00:00Z',
+      up: 0,
+      down: 0,
+      html: '<p>x</p>',
+      summary: 'Bread does not restore hunger.',
+      reporter: null,
+      comments: [],
+    })
+    expect(html).toContain('<title>Food not detected - SurvivalRP</title>')
+    expect(html).toContain('content="Bread does not restore hunger."')
+  })
+
+  it('titles a form page with the form name', () => {
+    expect(reportFormPage(addon, form)).toContain('<title>Bug report - SurvivalRP</title>')
+  })
+
+  it('falls back to the /report description when the form has none', () => {
+    const html = reportFormPage(addon, { ...form, description: '' })
+    expect(html).toContain(
+      'content="Report a bug or suggest a feature for SurvivalRP. No account needed."',
+    )
+    // Proves the page actually rendered with the form's own content, rather
+    // than the fallback description appearing in isolation.
+    expect(html).toContain('<title>Bug report - SurvivalRP</title>')
   })
 })

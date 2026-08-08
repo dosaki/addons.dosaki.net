@@ -6,11 +6,12 @@ import { creditName } from './names.js'
 import { appJwt, createComment, createIssue, downloadRedirect, getIssue, installationToken, listComments, listOpenIssues, setIssueBody } from './github.js'
 import { isDeferred, route } from './handler.js'
 import type { FunctionUrlEvent, Response } from './handler.js'
-import { esc, notFoundPage, reportDetailPage, reportsPage, THEME_CSS } from './templates.js'
+import { esc, messagePage, notFoundPage, reportDetailPage, reportsPage } from './templates.js'
 import type { ReportDetail, ReportItem } from './templates.js'
 import { HONEYPOT_FIELD, issueBody, issueTitle, NAME_FIELD, reporterName, stripFooter, validateSubmission } from './issue.js'
 import { commentBody, displayName, parseCommentRequest, validateComment } from './comments.js'
 import type { CommentRequest } from './comments.js'
+import { summarize } from './meta.js'
 import { renderIssueMarkdown } from './render.js'
 import { applyVote, makeListCache, parseVoteRequest, parseVotes, sortByVotes, stripVotesLine } from './votes.js'
 import type { SiteData } from './types.js'
@@ -144,6 +145,9 @@ async function showReport(slug: string, number: number): Promise<Response> {
       number: issue.number,
       title: issue.title,
       createdAt: issue.createdAt,
+      // The same stripped body the page renders, flattened to one line - so
+      // the description is the report's own words, not boilerplate.
+      summary: summarize(stripFooter(stripVotesLine(body))),
       ...parseVotes(issue.body),
       html: renderIssueMarkdown(stripFooter(stripVotesLine(body))),
       reporter: reporterName(body),
@@ -237,8 +241,9 @@ async function postComment(event: FunctionUrlEvent): Promise<Response> {
     return {
       statusCode,
       headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
-      body: page(
+      body: messagePage(
         'Could not post reply - addons.dosaki.net',
+        'The reply could not be posted.',
         `<h1 class="page">Could not post reply</h1><ul>${items}</ul>`,
       ),
       isBase64Encoded: false,
@@ -334,19 +339,6 @@ export function parseSubmission(
   throw new Error(`unsupported content-type: ${type || '(none)'}`)
 }
 
-function page(title: string, body: string): string {
-  return `<!doctype html>
-<html lang="en"><head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)}</title>
-<style>${THEME_CSS}</style>
-</head><body>
-<div class="wrap">${body}</div>
-<footer class="site"><div class="wrap">addons.dosaki.net</div></footer>
-</body></html>`
-}
-
 /**
  * Files the report GitHub issue for either request shape. A JSON body (the
  * React island) gets a JSON response back; a form-encoded body (the no-JS
@@ -381,8 +373,9 @@ async function fileIssue(event: FunctionUrlEvent): Promise<Response> {
     const items = messages.map((m) => `<li>${esc(m)}</li>`).join('')
     return htmlResponse(
       statusCode,
-      page(
+      messagePage(
         'Could not file report - addons.dosaki.net',
+        'The report could not be filed.',
         `<h1 class="page">Could not file report</h1><ul>${items}</ul>`,
       ),
     )
@@ -392,8 +385,9 @@ async function fileIssue(event: FunctionUrlEvent): Promise<Response> {
     if (asJson) return jsonResponse(statusCode, data)
     return htmlResponse(
       statusCode,
-      page(
+      messagePage(
         'Report filed - addons.dosaki.net',
+        'Your report was filed.',
         `<h1 class="page">Thanks</h1><p>Your report was filed as issue #${data.number}.</p>`,
       ),
     )

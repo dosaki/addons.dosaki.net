@@ -1,4 +1,10 @@
 /**
+ * The page background. Exported because og.ts draws link-preview cards on
+ * the same field, and a card that drifts from the site reads as a mistake.
+ */
+export const BG = '#0a0e18'
+
+/**
  * "Arcane Glow": the site's emblem is a bronze automaton holding a glowing
  * blue hologram, and the theme takes the hologram's side - luminous arcane
  * hairlines and glows on a deep navy field, bronze demoted to studs and
@@ -16,7 +22,7 @@ export const THEME_CSS = `
   font-display: swap;
 }
 :root {
-  --bg: #0a0e18; --panel: rgba(16, 26, 42, .85); --well: #0a101c;
+  --bg: ${BG}; --panel: rgba(16, 26, 42, .85); --well: #0a101c;
   --line: rgba(88, 198, 255, .2); --line-soft: rgba(88, 198, 255, .15);
   --text: #b6c2d4; --ui: #cfd8e6; --bright: #eaf6ff; --dim: #7e8ba0;
   --accent: #58c6ff; --accent-soft: #9adcff; --accent-pale: #cfe9ff;
