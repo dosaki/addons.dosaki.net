@@ -445,17 +445,11 @@ describe('addon page metadata', () => {
     )
   })
 
-  it('falls back to the site favicon when the addon has none', () => {
-    // In this checkout the site has no logo.svg either, so the fallback
-    // resolves to null and no <link rel="icon"> is emitted at all - this
-    // still pins the addon.icon === undefined branch in addonMeta.
-    const { icon, ...withoutIcon } = addon
-    const html = addonPage(withoutIcon as AddonPage)
-    expect(html).not.toContain('<link rel="icon"')
-    // Proves the page actually rendered through headTags, rather than the
-    // absence being an artefact of a blank page.
-    expect(html).toContain('<title>SurvivalRP - World of Warcraft Addon by Dosaki</title>')
-  })
+  // The "falls back to the site favicon when the addon has none" and "falls
+  // back to the site card when the bundle predates preview generation"
+  // cases live in templates-site-asset-absent.test.ts, which mocks siteLogo
+  // and siteImages absent explicitly rather than relying on this checkout
+  // not (yet) having static/logo.svg or a baked site-images.json.
 
   it("uses the addon's generated card as the preview when the bundle has one", () => {
     const html = addonPage(withPreviews)
@@ -466,19 +460,6 @@ describe('addon page metadata', () => {
     expect(html).toContain(
       '<link rel="apple-touch-icon" href="/assets/survivalrp/1.2.2/touch-icon.png">',
     )
-  })
-
-  it('falls back to the site card when the bundle predates preview generation', () => {
-    // addon.assets has no og.png, so the page must not claim one. Asserting
-    // on the addon's own asset path, not the bare filename: a developer who
-    // has baked site-images.json locally legitimately has /static/og.png.
-    const html = addonPage(addon)
-    expect(html).not.toContain('/assets/survivalrp/1.2.2/og.png')
-    expect(html).not.toContain('touch-icon')
-    // The fallback path must still render a real page - a broken meta helper
-    // that swallowed everything would trivially satisfy the two lines above.
-    expect(html).toContain('<title>SurvivalRP - World of Warcraft Addon by Dosaki</title>')
-    expect(html).toContain('<meta name="twitter:card" content="summary">')
   })
 
   it('describes itself to search engines as a free game application', () => {
@@ -567,5 +548,15 @@ describe('report route metadata', () => {
 
   it('titles a form page with the form name', () => {
     expect(reportFormPage(addon, form)).toContain('<title>Bug report - SurvivalRP</title>')
+  })
+
+  it('falls back to the /report description when the form has none', () => {
+    const html = reportFormPage(addon, { ...form, description: '' })
+    expect(html).toContain(
+      'content="Report a bug or suggest a feature for SurvivalRP. No account needed."',
+    )
+    // Proves the page actually rendered with the form's own content, rather
+    // than the fallback description appearing in isolation.
+    expect(html).toContain('<title>Bug report - SurvivalRP</title>')
   })
 })

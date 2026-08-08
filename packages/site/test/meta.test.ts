@@ -140,6 +140,12 @@ describe('robotsTxt', () => {
     expect(robotsTxt()).toContain('Disallow: /api/')
   })
 
+  it('keeps crawlers off the download route too, which costs two GitHub API calls', () => {
+    // Linked from the header of every addon page, so this branch increases
+    // crawl volume on it beyond what the report routes ever saw.
+    expect(robotsTxt()).toContain('Disallow: /*/download')
+  })
+
   it('leaves the addon pages crawlable', () => {
     expect(robotsTxt()).not.toContain('Disallow: /\n')
   })

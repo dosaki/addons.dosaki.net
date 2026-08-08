@@ -258,16 +258,10 @@ describe('crawler routes', () => {
   })
 })
 
-describe('site asset routes', () => {
-  it('404s each one when its source is missing, rather than crashing', () => {
-    // A fresh checkout has no static/logo.svg and no baked site-images.json,
-    // so siteLogo is null and siteImages is {} - every one of these routes
-    // is deterministically a 404 here, not merely "one of 200 or 404". The
-    // 200 path (source present) is covered separately in
-    // site-asset-routes-present.test.ts, which mocks the source modules.
-    for (const path of ['/static/logo.svg', '/static/og.png', '/static/touch-icon.png', '/favicon.ico']) {
-      const r = route(site, 'GET', path) as Response
-      expect(r.statusCode).toBe(404)
-    }
-  })
-})
+// The site asset routes (/static/logo.svg, /static/og.png,
+// /static/touch-icon.png, /favicon.ico) are covered in
+// site-asset-routes-present.test.ts (source mocked present) and
+// site-asset-routes-absent.test.ts (source mocked absent), each stating its
+// precondition explicitly with vi.mock rather than inheriting it from
+// whether this checkout happens to have static/logo.svg or a baked
+// site-images.json.

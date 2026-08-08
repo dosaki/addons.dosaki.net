@@ -148,11 +148,19 @@ export function summarize(markdown: string, max = 155): string {
  * report - while matching neither the root nor an addon page. (Described
  * rather than quoted: the pattern contains the sequence that would close
  * this comment.)
+ *
+ * The download route is disallowed for the identical reason: it costs two
+ * uncached GitHub API calls per request (see github.ts), with no cache of
+ * its own. This branch links it from the header of every addon page, so it
+ * now sees more crawl volume than the report routes ever did. Same wildcard
+ * shape as the report rule above, and described rather than quoted for the
+ * same reason.
  */
 export function robotsTxt(): string {
   return `User-agent: *
 Disallow: /api/
 Disallow: /*/report
+Disallow: /*/download
 
 Sitemap: ${SITE_ORIGIN}/sitemap.xml
 `

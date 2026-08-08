@@ -152,7 +152,7 @@ export function reportListPage(addon: AddonPage): string {
       : `<div class="cards">${addon.forms
           .map(
             (f) => `<a class="card" href="/${esc(addon.slug)}/report/${esc(f.key)}">
-<div><h2>${esc(f.name)}</h2><p>${esc(f.description)}</p></div></a>`,
+<div><h2>${esc(f.name)}</h2><p>${esc(f.description ?? '')}</p></div></a>`,
           )
           .join('')}</div>
 <p class="hint">No account needed - reports go straight to the developer.</p>
@@ -318,7 +318,7 @@ export function reportFormPage(addon: AddonPage, form: FormDefinition): string {
     addonMeta(addon, {
       title: `${form.name} - ${addon.name}`,
       description:
-        form.description === ''
+        (form.description ?? '') === ''
           ? `Report a bug or suggest a feature for ${addon.name}. No account needed.`
           : form.description,
       path: `/${addon.slug}/report/${form.key}`,

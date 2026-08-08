@@ -24,7 +24,12 @@ const NOT_A_FORM = new Set(['config.yml', 'config.yaml'])
 const ICON_PATH = 'docs/icon.svg'
 const ICON_KEY = 'icon.svg'
 
-/** Public site origin; image URLs in the paste-ready README point here. */
+/**
+ * Public site origin; image URLs in the paste-ready README point here. Also
+ * hardcoded as SITE_ORIGIN in packages/site/src/meta.ts. The duplication is
+ * deliberate: this package is a standalone tool that must not import from
+ * packages/site.
+ */
 const SITE_BASE = 'https://addons.dosaki.net'
 
 export interface GenerateResult {
