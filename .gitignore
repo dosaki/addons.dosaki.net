@@ -7,3 +7,7 @@ infra/.terraform/
 crash.log
 override.tf
 override.tf.json
+
+# Baked at deploy time from addons.yml and static/logo.svg, never committed.
+packages/site/src/site-data.json
+packages/site/src/site-images.json
