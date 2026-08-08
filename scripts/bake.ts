@@ -106,7 +106,7 @@ export async function bakeAddonBundle(slug: string, bundleBase64: string): Promi
  * file is supplied separately - and leaves those pages without a card rather
  * than failing the deploy.
  */
-async function bakeSiteImages(): Promise<Record<string, string>> {
+export async function bakeSiteImages(): Promise<Record<string, string>> {
   let svg: Buffer
   try {
     svg = readFileSync('packages/site/static/logo.svg')
