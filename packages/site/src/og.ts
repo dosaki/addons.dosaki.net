@@ -10,6 +10,12 @@ import { BG } from './theme.js'
  * IMPORTANT: this module imports sharp, a native binary that cannot be
  * esbuild-bundled. It must stay out of the Lambda's import graph - only
  * scripts/bake.ts and og.test.ts may import it. See lambda-graph.test.ts.
+ *
+ * That is an import-graph rule, NOT a packaging one: sharp belongs in
+ * dependencies and must stay there. packages/bundle/src/images.ts needs it
+ * at runtime, and that is the generator every addon repo runs through
+ * actions/bundle. Demoting it to devDependencies looks tidier from here and
+ * breaks any consumer that installs with --omit=dev.
  */
 
 /**

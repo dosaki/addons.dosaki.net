@@ -146,8 +146,14 @@ describe('robotsTxt', () => {
     expect(robotsTxt()).toContain('Disallow: /*/download')
   })
 
-  it('leaves the addon pages crawlable', () => {
-    expect(robotsTxt()).not.toContain('Disallow: /\n')
+  it('leaves the root and the addon pages crawlable', () => {
+    // The pages this whole feature exists to promote. Asserted as the exact
+    // set of Disallow rules rather than the absence of a blanket one: a new
+    // rule that happened to swallow /:slug would slip past a bare negative.
+    const rules = robotsTxt()
+      .split('\n')
+      .filter((line) => line.startsWith('Disallow:'))
+    expect(rules).toEqual(['Disallow: /api/', 'Disallow: /*/report', 'Disallow: /*/download'])
   })
 })
 
