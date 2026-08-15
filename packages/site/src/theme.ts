@@ -11,7 +11,6 @@ export const BG = '#0a0e18'
  * secondary controls. Dark stays non-negotiable: the content is screenshots
  * of a dark game UI, and on a light page each becomes a hard rectangle
  * punched through the layout.
- * Spec: docs/superpowers/specs/2026-08-02-arcane-theme-design.md
  */
 export const THEME_CSS = `
 @font-face {
