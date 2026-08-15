@@ -1,6 +1,6 @@
 name: Food or drink not detected
 description: Something you consumed did not restore hunger or thirst
-labels: [data]
+labels: ["Type:Data"]
 body:
   - type: markdown
     attributes:

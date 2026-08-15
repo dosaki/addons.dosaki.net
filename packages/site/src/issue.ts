@@ -14,6 +14,13 @@ export const NAME_FIELD = 'reporter-name'
 export const NAME_MAX = 80
 
 /**
+ * The site-injected optional title field, present on every form. Like the
+ * credit field it is the site's own: it is pulled out before template
+ * validation and becomes the issue title, never a section of the body.
+ */
+export const TITLE_FIELD = 'report-title'
+
+/**
  * The hidden decoy field on every site form. Humans never see it; autofill
  * bots fill it. Non-empty → the submission is silently dropped.
  */
@@ -47,12 +54,19 @@ function clean(value: string | undefined): string {
 }
 
 /**
- * No shipped template carries a `title:`, and the obvious fallback - the first
- * required answer - gives "deDE" for a translation offer and a truncated
- * paragraph for a bug report. Naming the form first fixes both.
+ * A title the reporter typed wins outright - it is the one description written
+ * by someone who knows what the report is about. Otherwise: no shipped template
+ * carries a `title:`, and the obvious fallback - the first required answer -
+ * gives "deDE" for a translation offer and a truncated paragraph for a bug
+ * report. Naming the form first fixes both.
  */
-export function issueTitle(form: FormDefinition, fields: Record<string, string>): string {
-  return clamp(compose(form, fields))
+export function issueTitle(
+  form: FormDefinition,
+  fields: Record<string, string>,
+  title = '',
+): string {
+  const supplied = clean(title).replace(/\s+/g, ' ')
+  return clamp(supplied === '' ? compose(form, fields) : supplied)
 }
 
 /** The 70-char bound is a promise about the RESULT, so enforce it at one exit. */
@@ -111,11 +125,17 @@ export function validateSubmission(
   form: FormDefinition,
   fields: Record<string, string>,
   name = '',
+  title = '',
 ): string[] {
   const problems: string[] = []
 
   if (clean(name).length > NAME_MAX) {
     problems.push(`Name is too long (limit ${NAME_MAX} characters)`)
+  }
+  // issueTitle clamps as a last resort, but a reporter who overshoots deserves
+  // to be told rather than to find their own words cut off in the report.
+  if (clean(title).length > TITLE_MAX) {
+    problems.push(`Title is too long (limit ${TITLE_MAX} characters)`)
   }
 
   for (const field of answerable(form)) {

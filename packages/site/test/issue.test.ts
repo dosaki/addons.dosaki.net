@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { issueBody, issueTitle, reporterName, stripFooter, validateSubmission, MAX_FIELD_CHARS, NAME_MAX } from '../src/issue.js'
+import { issueBody, issueTitle, reporterName, stripFooter, validateSubmission, MAX_FIELD_CHARS, NAME_MAX, TITLE_MAX } from '../src/issue.js'
 import type { FormDefinition } from '../src/types.js'
 
 const form: FormDefinition = {
@@ -48,6 +48,52 @@ describe('reporter name', () => {
 
   it('never lets the name into the title', () => {
     expect(issueTitle(form, { what: 'It broke' })).not.toContain('Nesingwary')
+  })
+})
+
+describe('the reporter-supplied title', () => {
+  it('uses what the reporter typed, verbatim', () => {
+    expect(issueTitle(form, { what: 'It broke' }, 'Campfires vanish at dawn')).toBe(
+      'Campfires vanish at dawn',
+    )
+  })
+
+  it('does not prepend the form name to a supplied title', () => {
+    expect(issueTitle(form, { what: 'It broke' }, 'Campfires vanish')).not.toContain('Bug report')
+  })
+
+  it('ignores a titlePrefix the template sets when the reporter supplied a title', () => {
+    const prefixed: FormDefinition = { ...form, titlePrefix: '[Bug] ' }
+    expect(issueTitle(prefixed, { what: 'It broke' }, 'Campfires vanish')).toBe('Campfires vanish')
+  })
+
+  it('falls back to the composed title when the reporter left it blank', () => {
+    expect(issueTitle(form, { what: 'It broke' }, '   ')).toBe('Bug report: It broke')
+  })
+
+  it('clamps an over-long title to the same bound every other title obeys', () => {
+    const long = issueTitle(form, { what: 'x' }, 'T'.repeat(TITLE_MAX + 40))
+    expect(long).toHaveLength(TITLE_MAX)
+    expect(long.endsWith('…')).toBe(true)
+  })
+
+  it('collapses newlines a textarea paste could smuggle into a title', () => {
+    expect(issueTitle(form, { what: 'x' }, 'Campfires\nvanish  at dawn')).toBe(
+      'Campfires vanish at dawn',
+    )
+  })
+
+  it('rejects a title over the cap so the reporter is told, not silently cut', () => {
+    const problems = validateSubmission(form, { what: 'x' }, '', 'T'.repeat(TITLE_MAX + 1))
+    expect(problems.some((p) => p.includes('Title'))).toBe(true)
+  })
+
+  it('accepts a title at the cap', () => {
+    expect(validateSubmission(form, { what: 'x' }, '', 'T'.repeat(TITLE_MAX))).toEqual([])
+  })
+
+  it('accepts no title at all, since it is optional', () => {
+    expect(validateSubmission(form, { what: 'x' })).toEqual([])
   })
 })
 

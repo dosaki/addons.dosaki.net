@@ -1,6 +1,6 @@
 import { createPrivateKey, generateKeyPairSync, createVerify } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import { appJwt, createComment, createIssue, downloadRedirect, getIssue, listComments, listOpenIssues, setIssueBody } from '../src/github.js'
+import { appJwt, createComment, createIssue, downloadRedirect, getIssue, listComments, listIssues, setIssueBody } from '../src/github.js'
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
 const pem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
@@ -121,31 +121,64 @@ function jsonFetch(status: number, body: unknown) {
   return { impl, calls }
 }
 
-describe('listOpenIssues', () => {
+describe('listIssues', () => {
   const issue = {
     number: 7,
     title: 'It broke',
     body: '**Votes:** 1👍 / 0👎',
     created_at: '2026-03-01T00:00:00Z',
+    state: 'open',
+    closed_at: null,
+    labels: [{ name: 'bug' }],
   }
 
-  it('asks for open issues and maps what the page needs', async () => {
+  it('asks for issues in every state, since closed ones linger on the site', async () => {
     const { impl, calls } = jsonFetch(200, [issue])
-    const got = await listOpenIssues('dosaki/x', 'tok', impl)
-    expect(calls[0]!.url).toContain('/repos/dosaki/x/issues?state=open')
-    expect(got).toEqual([
-      { number: 7, title: 'It broke', body: '**Votes:** 1👍 / 0👎', createdAt: '2026-03-01T00:00:00Z' },
+    await listIssues('dosaki/x', 'tok', impl)
+    expect(calls[0]!.url).toContain('/repos/dosaki/x/issues?state=all')
+  })
+
+  it('maps what the reports list needs', async () => {
+    const { impl } = jsonFetch(200, [issue])
+    expect(await listIssues('dosaki/x', 'tok', impl)).toEqual([
+      {
+        number: 7,
+        title: 'It broke',
+        body: '**Votes:** 1👍 / 0👎',
+        createdAt: '2026-03-01T00:00:00Z',
+        state: 'open',
+        closedAt: null,
+        labels: ['bug'],
+      },
     ])
+  })
+
+  it('carries the close time a closed issue reports', async () => {
+    const closed = { ...issue, state: 'closed', closed_at: '2026-03-09T00:00:00Z' }
+    const { impl } = jsonFetch(200, [closed])
+    const got = (await listIssues('dosaki/x', 'tok', impl))[0]!
+    expect(got.state).toBe('closed')
+    expect(got.closedAt).toBe('2026-03-09T00:00:00Z')
+  })
+
+  it('reads labels as plain names', async () => {
+    const { impl } = jsonFetch(200, [{ ...issue, labels: [{ name: 'bug' }, { name: 'good first issue' }] }])
+    expect((await listIssues('dosaki/x', 'tok', impl))[0]!.labels).toEqual(['bug', 'good first issue'])
+  })
+
+  it('survives an issue GitHub sent with no labels key at all', async () => {
+    const { impl } = jsonFetch(200, [{ ...issue, labels: undefined }])
+    expect((await listIssues('dosaki/x', 'tok', impl))[0]!.labels).toEqual([])
   })
 
   it('drops pull requests, which the issues API mixes in', async () => {
     const { impl } = jsonFetch(200, [issue, { ...issue, number: 8, pull_request: { url: 'x' } }])
-    expect((await listOpenIssues('dosaki/x', 'tok', impl)).map((i) => i.number)).toEqual([7])
+    expect((await listIssues('dosaki/x', 'tok', impl)).map((i) => i.number)).toEqual([7])
   })
 
   it('throws with the status when GitHub refuses', async () => {
     const { impl } = jsonFetch(500, [])
-    await expect(listOpenIssues('dosaki/x', 'tok', impl)).rejects.toThrow(/500/)
+    await expect(listIssues('dosaki/x', 'tok', impl)).rejects.toThrow(/500/)
   })
 })
 
@@ -157,6 +190,8 @@ describe('getIssue', () => {
       body: null,
       state: 'open',
       created_at: '2026-03-01T00:00:00Z',
+      closed_at: null,
+      labels: [{ name: 'bug' }],
     })
     const got = await getIssue('dosaki/x', 7, 'tok', impl)
     expect(calls[0]!.url).toContain('/repos/dosaki/x/issues/7')
@@ -166,6 +201,8 @@ describe('getIssue', () => {
       body: null,
       state: 'open',
       createdAt: '2026-03-01T00:00:00Z',
+      closedAt: null,
+      labels: ['bug'],
       isPullRequest: false,
     })
   })

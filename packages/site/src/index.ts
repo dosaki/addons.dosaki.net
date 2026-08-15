@@ -3,17 +3,18 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { buildSite } from './build.js'
 import { creditName } from './names.js'
-import { appJwt, createComment, createIssue, downloadRedirect, getIssue, installationToken, listComments, listOpenIssues, setIssueBody } from './github.js'
+import { appJwt, createComment, createIssue, downloadRedirect, getIssue, installationToken, listComments, listIssues, setIssueBody } from './github.js'
 import { isDeferred, route } from './handler.js'
 import type { FunctionUrlEvent, Response } from './handler.js'
 import { esc, messagePage, notFoundPage, reportDetailPage, reportsPage } from './templates.js'
 import type { ReportDetail, ReportItem } from './templates.js'
-import { HONEYPOT_FIELD, issueBody, issueTitle, NAME_FIELD, reporterName, stripFooter, validateSubmission } from './issue.js'
+import { HONEYPOT_FIELD, issueBody, issueTitle, NAME_FIELD, reporterName, stripFooter, TITLE_FIELD, validateSubmission } from './issue.js'
 import { commentBody, displayName, parseCommentRequest, validateComment } from './comments.js'
 import type { CommentRequest } from './comments.js'
 import { summarize } from './meta.js'
 import { renderIssueMarkdown } from './render.js'
-import { applyVote, makeListCache, parseVoteRequest, parseVotes, sortByVotes, stripVotesLine } from './votes.js'
+import { applyVote, makeListCache, parseVoteRequest, parseVotes, stripVotesLine } from './votes.js'
+import { isVisible, visibleReports } from './reports.js'
 import type { SiteData } from './types.js'
 
 /** Baked at deploy time by the deploy workflow. */
@@ -89,16 +90,21 @@ async function listReports(slug: string): Promise<Response> {
   let reports = reportCache.get(repo, Date.now())
   if (reports === null) {
     try {
-      const issues = await listOpenIssues(repo, await githubToken())
-      reports = sortByVotes(
+      const now = Date.now()
+      const issues = await listIssues(repo, await githubToken())
+      reports = visibleReports(
         issues.map((i) => ({
           number: i.number,
           title: i.title,
           createdAt: i.createdAt,
+          state: i.state,
+          closedAt: i.closedAt,
+          labels: i.labels,
           ...parseVotes(i.body),
         })),
+        now,
       )
-      reportCache.set(repo, reports, Date.now())
+      reportCache.set(repo, reports, now)
     } catch (error) {
       console.error('list reports failed:', error instanceof Error ? error.message : String(error))
       // The page shell is fine; only the list is missing - so 200, not 5xx.
@@ -134,8 +140,9 @@ async function showReport(slug: string, number: number): Promise<Response> {
   try {
     const token = await githubToken()
     const issue = await getIssue(repo, number, token)
-    // The list shows open issues only, so a closed one is simply gone.
-    if (issue === null || issue.isPullRequest || issue.state !== 'open') {
+    // A closed report stays readable for its grace window, then is simply gone
+    // - the same window the list uses, so the two never disagree.
+    if (issue === null || issue.isPullRequest || !isVisible(issue, Date.now())) {
       return htmlResponse(404, notFoundPage(site.addons))
     }
     const comments = await listComments(repo, number, token)
@@ -145,11 +152,13 @@ async function showReport(slug: string, number: number): Promise<Response> {
       number: issue.number,
       title: issue.title,
       createdAt: issue.createdAt,
+      state: issue.state,
+      labels: issue.labels,
       // The same stripped body the page renders, flattened to one line - so
       // the description is the report's own words, not boilerplate.
       summary: summarize(stripFooter(stripVotesLine(body))),
       ...parseVotes(issue.body),
-      html: renderIssueMarkdown(stripFooter(stripVotesLine(body))),
+      html: renderIssueMarkdown(stripFooter(stripVotesLine(body)), slug),
       reporter: reporterName(body),
       // A site-posted reply arrives under the bot's login with a credit
       // footer; the footer is machinery, its name is the author to show.
@@ -157,7 +166,7 @@ async function showReport(slug: string, number: number): Promise<Response> {
         author: displayName(c.body, c.author),
         isDeveloper: c.authorAssociation === 'OWNER',
         createdAt: c.createdAt,
-        html: renderIssueMarkdown(stripFooter(c.body)),
+        html: renderIssueMarkdown(stripFooter(c.body), slug),
       })),
     }
     return htmlResponse(200, reportDetailPage(addon, detail))
@@ -405,19 +414,25 @@ async function fileIssue(event: FunctionUrlEvent): Promise<Response> {
   const form = addon.forms.find((f) => f.key === submission.form)
   if (form === undefined) return problem(404, ['No such form'])
 
-  // The site's own credit field, not the template's: pulled out before the
-  // template fields are validated, credited in the footer, never a section.
-  const { [NAME_FIELD]: name = '', [HONEYPOT_FIELD]: website = '', ...fields } = submission.fields
+  // The site's own fields, not the template's: pulled out before the template
+  // fields are validated. The name is credited in the footer and the title
+  // becomes the issue title; neither is ever a section of the body.
+  const {
+    [NAME_FIELD]: name = '',
+    [TITLE_FIELD]: title = '',
+    [HONEYPOT_FIELD]: website = '',
+    ...fields
+  } = submission.fields
   // A filled decoy field is a bot. Answer success so it learns nothing,
   // and spend no GitHub call on it.
   if (website !== '') return json(201, { number: 0 })
 
-  const problems = validateSubmission(form, fields, name)
+  const problems = validateSubmission(form, fields, name, title)
   if (problems.length > 0) return problem(400, problems)
 
   try {
     const number = await createIssue(REPOS.get(addon.slug)!, await githubToken(), {
-      title: issueTitle(form, fields),
+      title: issueTitle(form, fields, title),
       // Validation ran on the typed name; crediting happens at filing time,
       // so a blank name becomes a pseudonym rather than an anonymous report.
       body: issueBody(form, fields, creditName(name)),
