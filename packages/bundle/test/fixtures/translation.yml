@@ -1,6 +1,6 @@
 name: Translation offer
 description: Help translate SurvivalRP into your language
-labels: [translation]
+labels: ["Type:Translation"]
 body:
   - type: markdown
     attributes:

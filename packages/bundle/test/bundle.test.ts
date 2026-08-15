@@ -11,7 +11,7 @@ const form: FormDefinition = {
   key: 'bug_report',
   name: 'Bug report',
   description: 'Something is not working',
-  labels: ['bug'],
+  labels: ['Type:Bug'],
   fields: [{ type: 'input', id: 'what', label: 'What happened?', required: true }],
 }
 

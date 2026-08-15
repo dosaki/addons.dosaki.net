@@ -1,6 +1,6 @@
 name: Feature suggestion
 description: An idea for something SurvivalRP could do
-labels: [enhancement]
+labels: ["Type:Enhancement"]
 body:
   - type: markdown
     attributes:

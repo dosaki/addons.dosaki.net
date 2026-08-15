@@ -12,7 +12,26 @@ describe('parseForm', () => {
     expect(form.key).toBe('bug_report')
     expect(form.name).toBe('Bug report')
     expect(form.description).toBe('Something is not working')
-    expect(form.labels).toEqual(['bug'])
+    expect(form.labels).toEqual(['Type:Bug'])
+  })
+
+  // The shipped templates quote their labels, because a colon inside a YAML
+  // flow sequence is ambiguous in strict YAML. Both shapes must keep working:
+  // the quoted one is what they write, the bare one is what a future template
+  // will eventually be written as by hand.
+  it('reads a scoped label whose colon is quoted, as the templates write them', () => {
+    expect(parseForm('x', 'name: n\nlabels: ["Type:Bug", "Priority:High"]\n').labels)
+      .toEqual(['Type:Bug', 'Priority:High'])
+  })
+
+  it('reads a scoped label written without quotes', () => {
+    expect(parseForm('x', 'name: n\nlabels: [Type:Bug, Priority:High]\n').labels)
+      .toEqual(['Type:Bug', 'Priority:High'])
+  })
+
+  it('reads scoped labels from a block sequence', () => {
+    expect(parseForm('x', 'name: n\nlabels:\n  - Type:Bug\n  - Priority:High\n').labels)
+      .toEqual(['Type:Bug', 'Priority:High'])
   })
 
   it('keeps markdown blocks, which carry no answer', () => {
@@ -135,14 +154,14 @@ describe('the shipped templates', () => {
   it('parses the feature suggestion form', () => {
     const form = parseForm('feature_request', fixture('feature_request.yml'))
     expect(form.name).toBe('Feature suggestion')
-    expect(form.labels).toEqual(['enhancement'])
+    expect(form.labels).toEqual(['Type:Enhancement'])
     expect(form.fields.find((f) => f.id === 'idea')?.required).toBe(true)
     expect(form.fields.find((f) => f.id === 'kind')?.required).toBe(false)
   })
 
   it('parses the translation form, including its dropdown', () => {
     const form = parseForm('translation', fixture('translation.yml'))
-    expect(form.labels).toEqual(['translation'])
+    expect(form.labels).toEqual(['Type:Translation'])
     const scope = form.fields.find((f) => f.id === 'scope')
     expect(scope?.type).toBe('dropdown')
     expect(scope?.options).toHaveLength(3)
