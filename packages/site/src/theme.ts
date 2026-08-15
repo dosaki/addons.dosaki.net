@@ -210,6 +210,31 @@ button.vote:hover { border-color: var(--accent); box-shadow: 0 0 12px var(--glow
   background: rgba(201, 169, 97, .05); box-shadow: none;
 }
 .vote .count { font-weight: 650; margin-left: 4px; }
+/* Bronze, not blue: a closed report is finished business, not a live control. */
+.badge {
+  display: inline-block; font-size: 11px; font-weight: 650; letter-spacing: .06em;
+  text-transform: uppercase; vertical-align: 1px;
+  color: var(--bronze); background: rgba(201, 169, 97, .08);
+  border: 1px solid var(--bronze-line); border-radius: 4px; padding: 1px 6px; margin-right: 6px;
+}
+.card.report.done { opacity: .72; border-color: var(--bronze-line); }
+.votes.done { align-items: center; color: var(--dim); font-size: 14px; }
+.votes.done .count { font-weight: 650; }
+.labels { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
+/* Two segments, one pill: the scope is context, the value is the point, so
+   the scope stays dim and the divider does the separating rather than a colon. */
+.label {
+  display: inline-flex; overflow: hidden; font-size: 12px; line-height: 1.7;
+  color: var(--accent-soft); background: rgba(88, 198, 255, .08);
+  border: 1px solid var(--line); border-radius: 999px;
+}
+.label .scope {
+  padding: 0 7px 0 9px; color: var(--dim);
+  background: rgba(255, 255, 255, .04); border-right: 1px solid var(--line);
+}
+.label .value { padding: 0 9px; }
+.label.scope-priority { color: var(--bronze); border-color: var(--bronze-line); background: rgba(201, 169, 97, .07); }
+.label.scope-priority .scope { border-right-color: var(--bronze-line); }
 .report-body { margin-top: 22px; }
 .replies-title { font-size: 20px; margin-top: 36px; }
 ul.replies { list-style: none; margin: 14px 0 40px; padding: 0; display: grid; gap: 12px; }

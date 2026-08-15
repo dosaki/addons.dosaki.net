@@ -1,4 +1,5 @@
 import { fieldsHtml } from './forms-html.js'
+import { parseLabel } from './labels.js'
 import { esc } from './html.js'
 import {
   headTags,
@@ -175,15 +176,64 @@ export interface ReportItem {
   createdAt: string
   up: number
   down: number
+  /** "open" or "closed"; a closed report is shown for a while, then dropped. */
+  state: string
+  labels: string[]
+}
+
+function isClosed(state: string): boolean {
+  return state === 'closed'
+}
+
+/**
+ * A scope becomes a class so each one can be styled its own way. Reduced to
+ * [a-z0-9-] rather than merely escaped: a class name has no business carrying
+ * anything else, and it leaves no way out of the attribute.
+ */
+function chipClass(scope: string | null): string {
+  if (scope === null) return 'label'
+  const safe = scope.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  return safe === '' ? 'label' : `label scope-${safe}`
+}
+
+function chip(name: string): string {
+  const { scope, value } = parseLabel(name)
+  const prefix = scope === null ? '' : `<span class="scope">${esc(scope)}</span>`
+  return `<span class="${chipClass(scope)}">${prefix}<span class="value">${esc(value)}</span></span>`
+}
+
+/** Omitted entirely, not left empty: most reports carry no labels at all. */
+function labelChips(labels: string[]): string {
+  if (labels.length === 0) return ''
+  return `<p class="labels">${labels.map(chip).join('')}</p>`
+}
+
+function closedBadge(state: string): string {
+  return isClosed(state) ? '<span class="badge closed">Closed</span> ' : ''
+}
+
+/**
+ * Buttons only while a report is open. Voting on a closed one is refused by
+ * the API, so offering the control would be a trap; the tally still shows,
+ * as the record of what people thought.
+ */
+function voteWidget(slug: string, report: { number: number; up: number; down: number; state: string }): string {
+  if (isClosed(report.state)) {
+    return `<div class="votes done">
+<span class="count" aria-label="Mattered to people">👍 ${report.up}</span>
+<span class="count" aria-label="Not a priority">👎 ${report.down}</span>
+</div>`
+  }
+  return `<div class="votes" data-slug="${esc(slug)}" data-issue="${report.number}">
+<button class="vote" data-dir="up" aria-label="This matters to me">👍 <span class="count">${report.up}</span></button>
+<button class="vote" data-dir="down" aria-label="Not a priority">👎 <span class="count">${report.down}</span></button>
+</div>`
 }
 
 function reportRow(slug: string, report: ReportItem): string {
-  return `<li class="card report">
-<div><h2><a href="/${esc(slug)}/reports/${report.number}">${esc(report.title)}</a></h2><p class="hint">Opened ${esc(report.createdAt.slice(0, 10))}</p></div>
-<div class="votes" data-slug="${esc(slug)}" data-issue="${report.number}">
-<button class="vote" data-dir="up" aria-label="This matters to me">👍 <span class="count">${report.up}</span></button>
-<button class="vote" data-dir="down" aria-label="Not a priority">👎 <span class="count">${report.down}</span></button>
-</div></li>`
+  return `<li class="card report${isClosed(report.state) ? ' done' : ''}">
+<div><h2><a href="/${esc(slug)}/reports/${report.number}">${esc(report.title)}</a></h2><p class="hint">${closedBadge(report.state)}Opened ${esc(report.createdAt.slice(0, 10))}</p>${labelChips(report.labels)}</div>
+${voteWidget(slug, report)}</li>`
 }
 
 /** null means the list could not be fetched; the page itself still renders. */
@@ -207,6 +257,19 @@ export function reportsPage(addon: AddonPage, reports: ReportItem[] | null): str
     }),
     `${siteHeader(addon)}<div class="wrap"><h1 class="page">Existing reports</h1>${body}</div>`,
   )
+}
+
+/**
+ * Site-injected on every form, so no addon template needs it. Asked first
+ * because a reporter's own headline frames everything they write after it,
+ * and because it is what the reports list will show. Skipped only when a
+ * template already asks for the reserved id itself.
+ */
+function titleField(form: FormDefinition): string {
+  if (form.fields.some((f) => f.id === 'report-title')) return ''
+  return `<div class="field"><label for="report-title">Title <span class="opt">optional</span></label>
+<p class="hint">a short headline - leave it blank and one is written for you</p>
+<input type="text" id="report-title" name="report-title" maxlength="70"></div>`
 }
 
 /**
@@ -245,6 +308,9 @@ export interface ReportDetail {
   summary: string
   up: number
   down: number
+  /** "open" or "closed"; a closed report is shown for a while, then dropped. */
+  state: string
+  labels: string[]
   /** Already rendered AND sanitized by renderIssueMarkdown - inserted as-is. */
   html: string
   reporter: string | null
@@ -265,34 +331,17 @@ function commentBlock(comment: ReportComment): string {
 <div>${comment.html}</div></li>`
 }
 
-export function reportDetailPage(addon: AddonPage, report: ReportDetail): string {
-  const credit = report.reporter === null ? '' : ` &middot; Reported by ${esc(report.reporter)}`
-  const replies =
-    report.comments.length === 0
-      ? '<p class="hint">No replies yet.</p>'
-      : `<ul class="replies">${report.comments.map(commentBlock).join('\n')}</ul>`
-
-  return shell(
-    addonMeta(addon, {
-      title: `${report.title} - ${addon.name}`,
-      description: report.summary,
-      path: `/${addon.slug}/reports/${report.number}`,
-      noindex: true,
-    }),
-    `${siteHeader(addon)}
-<div class="wrap">
-<p class="crumb"><a href="/${esc(addon.slug)}/reports">&larr; All reports</a></p>
-<h1 class="page">${esc(report.title)}</h1>
-<p class="hint">Opened ${esc(report.createdAt.slice(0, 10))}${credit}</p>
-<noscript><div class="problems">Voting needs JavaScript enabled - the site signs your vote before forwarding it.</div></noscript>
-<div class="votes" data-slug="${esc(addon.slug)}" data-issue="${report.number}">
-<button class="vote" data-dir="up" aria-label="This matters to me">👍 <span class="count">${report.up}</span></button>
-<button class="vote" data-dir="down" aria-label="Not a priority">👎 <span class="count">${report.down}</span></button>
-</div>
-<main class="report-body">${report.html}</main>
-<h2 class="page replies-title">Replies</h2>
-${replies}
-<h2 class="page replies-title">Add a reply</h2>
+/**
+ * A closed report is a record, not a conversation: the API refuses both a vote
+ * and a reply on one, so the page says so instead of offering controls that
+ * would only fail.
+ */
+function replySection(addon: AddonPage, report: ReportDetail): string {
+  if (isClosed(report.state)) {
+    return `<h2 class="page replies-title">Add a reply</h2>
+<p class="hint">This report is closed, so replies are turned off. If it happens again, please open a new report.</p>`
+  }
+  return `<h2 class="page replies-title">Add a reply</h2>
 <div id="comment-root">
 <noscript><div class="problems">Replying needs JavaScript enabled - the site signs your reply before forwarding it.</div></noscript>
 <form action="/api/comment" method="post">
@@ -307,9 +356,40 @@ ${honeypotField()}
 <button type="submit" class="dl">Send reply</button>
 </form>
 <div class="problems" id="comment-problems" hidden></div>
-</div>
-<script src="/static/form.js" defer></script>
-</div>`,
+</div>`
+}
+
+export function reportDetailPage(addon: AddonPage, report: ReportDetail): string {
+  const credit = report.reporter === null ? '' : ` &middot; Reported by ${esc(report.reporter)}`
+  const replies =
+    report.comments.length === 0
+      ? '<p class="hint">No replies yet.</p>'
+      : `<ul class="replies">${report.comments.map(commentBlock).join('\n')}</ul>`
+  // Both islands are pointless on a closed report - no buttons, no reply form.
+  const noscript = isClosed(report.state)
+    ? ''
+    : '<noscript><div class="problems">Voting needs JavaScript enabled - the site signs your vote before forwarding it.</div></noscript>\n'
+  const script = isClosed(report.state) ? '' : '<script src="/static/form.js" defer></script>\n'
+
+  return shell(
+    addonMeta(addon, {
+      title: `${report.title} - ${addon.name}`,
+      description: report.summary,
+      path: `/${addon.slug}/reports/${report.number}`,
+      noindex: true,
+    }),
+    `${siteHeader(addon)}
+<div class="wrap">
+<p class="crumb"><a href="/${esc(addon.slug)}/reports">&larr; All reports</a></p>
+<h1 class="page">${esc(report.title)}</h1>
+<p class="hint">${closedBadge(report.state)}Opened ${esc(report.createdAt.slice(0, 10))}${credit}</p>
+${labelChips(report.labels)}
+${noscript}${voteWidget(addon.slug, report)}
+<main class="report-body">${report.html}</main>
+<h2 class="page replies-title">Replies</h2>
+${replies}
+${replySection(addon, report)}
+${script}</div>`,
   )
 }
 
@@ -333,6 +413,7 @@ export function reportFormPage(addon: AddonPage, form: FormDefinition): string {
 <form action="/api/issue" method="post">
 <input type="hidden" name="slug" value="${esc(addon.slug)}">
 <input type="hidden" name="form" value="${esc(form.key)}">
+${titleField(form)}
 ${nameField(form)}
 ${fieldsHtml(form)}
 ${honeypotField()}

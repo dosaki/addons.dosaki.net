@@ -158,6 +158,33 @@ describe('reportListPage', () => {
   })
 })
 
+describe('reportFormPage title field', () => {
+  it('offers an optional title field', () => {
+    const html = reportFormPage(withForms, aForm)
+    expect(html).toContain('name="report-title"')
+    expect(html).toContain('optional')
+  })
+
+  it('caps the title input at the length the issue title allows', () => {
+    expect(reportFormPage(withForms, aForm)).toContain('maxlength="70"')
+  })
+
+  it('asks for the title before anything else, so it frames the report', () => {
+    const html = reportFormPage(withForms, aForm)
+    expect(html.indexOf('name="report-title"')).toBeLessThan(html.indexOf('name="reporter-name"'))
+  })
+
+  it('yields to a template that already claims the reserved id', () => {
+    const claimed: FormDefinition = {
+      ...aForm,
+      fields: [{ type: 'input', id: 'report-title', label: 'Headline', required: true }],
+    }
+    const html = reportFormPage(withForms, claimed)
+    expect(html.match(/name="report-title"/g)).toHaveLength(1)
+    expect(html).toContain('Headline')
+  })
+})
+
 describe('reportFormPage', () => {
   it('posts to the api route', () => {
     const html = reportFormPage(withForms, aForm)
@@ -202,8 +229,8 @@ describe('reportFormPage', () => {
 })
 
 const someReports = [
-  { number: 7, title: 'It broke', createdAt: '2026-03-01T12:00:00Z', up: 3, down: 1 },
-  { number: 9, title: 'Add pets', createdAt: '2026-04-01T12:00:00Z', up: 0, down: 0 },
+  { number: 7, title: 'It broke', createdAt: '2026-03-01T12:00:00Z', up: 3, down: 1, state: 'open', labels: ['bug'] },
+  { number: 9, title: 'Add pets', createdAt: '2026-04-01T12:00:00Z', up: 0, down: 0, state: 'open', labels: [] },
 ]
 
 describe('reportsPage', () => {
@@ -263,6 +290,8 @@ const aDetail = {
   summary: 'The HUD vanished.',
   up: 3,
   down: 1,
+  state: 'open',
+  labels: ['bug', 'good first issue'],
   html: '<h3>What happened</h3><p>The HUD vanished</p>',
   reporter: 'Nesingwary' as string | null,
   comments: [
@@ -270,6 +299,49 @@ const aDetail = {
     { author: 'somefan', isDeveloper: false, createdAt: '2026-03-03T12:00:00Z', html: '<p>Same here</p>' },
   ],
 }
+
+const closedReport = {
+  number: 4, title: 'Old bug', createdAt: '2026-02-01T12:00:00Z',
+  up: 9, down: 0, state: 'closed', labels: ['bug'],
+}
+
+describe('reportsPage closed reports and labels', () => {
+  it('badges a closed report', () => {
+    const html = reportsPage(withForms, [closedReport])
+    expect(html).toContain('Closed')
+    expect(html).toContain('class="badge')
+  })
+
+  it('leaves an open report unbadged', () => {
+    expect(reportsPage(withForms, [someReports[0]!])).not.toContain('class="badge')
+  })
+
+  it('offers no vote buttons on a closed report, which the server would refuse', () => {
+    const html = reportsPage(withForms, [closedReport])
+    expect(html).not.toContain('data-dir="up"')
+    expect(html).not.toContain('data-issue="4"')
+  })
+
+  it('still shows a closed report its tally, as a record', () => {
+    expect(reportsPage(withForms, [closedReport])).toContain('9')
+  })
+
+  it('shows each label a report carries', () => {
+    const html = reportsPage(withForms, someReports)
+    expect(html).toContain('class="label"')
+    expect(html).toContain('bug')
+  })
+
+  it('renders nothing at all for a report with no labels', () => {
+    const html = reportsPage(withForms, [someReports[1]!])
+    expect(html).not.toContain('class="label"')
+  })
+
+  it('escapes a label rather than trusting it', () => {
+    const evil = [{ ...someReports[0]!, labels: ['<script>alert(1)</script>'] }]
+    expect(reportsPage(withForms, evil)).not.toContain('<script>alert(1)')
+  })
+})
 
 describe('reportDetailPage', () => {
   it('shows the title, the rendered body, and when it was opened', () => {
@@ -521,6 +593,8 @@ describe('report route metadata', () => {
         up: 0,
         down: 0,
         html: '<p>x</p>',
+        state: 'open',
+        labels: [],
         summary: 'Bread does not restore hunger.',
         reporter: null,
         comments: [],
@@ -538,6 +612,8 @@ describe('report route metadata', () => {
       up: 0,
       down: 0,
       html: '<p>x</p>',
+      state: 'open',
+      labels: [],
       summary: 'Bread does not restore hunger.',
       reporter: null,
       comments: [],
@@ -558,5 +634,93 @@ describe('report route metadata', () => {
     // Proves the page actually rendered with the form's own content, rather
     // than the fallback description appearing in isolation.
     expect(html).toContain('<title>Bug report - SurvivalRP</title>')
+  })
+})
+
+describe('reportDetailPage when the report is closed', () => {
+  const closed = { ...aDetail, state: 'closed' }
+
+  it('badges it', () => {
+    expect(reportDetailPage(withForms, closed)).toContain('class="badge')
+  })
+
+  it('offers no vote buttons, which the server would refuse', () => {
+    const html = reportDetailPage(withForms, closed)
+    expect(html).not.toContain('data-dir="up"')
+  })
+
+  it('offers no reply form, which the server would refuse', () => {
+    const html = reportDetailPage(withForms, closed)
+    expect(html).not.toContain('action="/api/comment"')
+  })
+
+  it('says why replying is off rather than just dropping the form', () => {
+    expect(reportDetailPage(withForms, closed).toLowerCase()).toContain('closed')
+  })
+
+  it('still shows the body and the replies already there', () => {
+    const html = reportDetailPage(withForms, closed)
+    expect(html).toContain('The HUD vanished')
+    expect(html).toContain('Fixed in 1.2.3')
+  })
+})
+
+describe('reportDetailPage labels', () => {
+  it('shows each label the report carries', () => {
+    const html = reportDetailPage(withForms, aDetail)
+    expect(html).toContain('class="label"')
+    expect(html).toContain('good first issue')
+  })
+
+  it('renders nothing at all when the report has no labels', () => {
+    expect(reportDetailPage(withForms, { ...aDetail, labels: [] })).not.toContain('class="label"')
+  })
+
+  it('escapes a label rather than trusting it', () => {
+    const evil = { ...aDetail, labels: ['<script>alert(1)</script>'] }
+    expect(reportDetailPage(withForms, evil)).not.toContain('<script>alert(1)')
+  })
+})
+
+describe('scoped label chips', () => {
+  const scoped = { ...aDetail, labels: ['Type:Bug', 'Priority:High', 'good first issue'] }
+
+  it('splits a scoped label into a scope segment and a value segment', () => {
+    const html = reportDetailPage(withForms, scoped)
+    expect(html).toContain('<span class="scope">Type</span>')
+    expect(html).toContain('<span class="value">Bug</span>')
+  })
+
+  it('names the scope on the chip so it can be styled per scope', () => {
+    const html = reportDetailPage(withForms, scoped)
+    expect(html).toContain('label scope-type')
+    expect(html).toContain('label scope-priority')
+  })
+
+  it('renders an unscoped label as a single segment, with no empty scope', () => {
+    const html = reportDetailPage(withForms, { ...aDetail, labels: ['good first issue'] })
+    expect(html).toContain('<span class="value">good first issue</span>')
+    expect(html).not.toContain('<span class="scope">')
+  })
+
+  it('escapes both segments rather than trusting them', () => {
+    const evil = { ...aDetail, labels: ['<b>x</b>:<script>alert(1)</script>'] }
+    const html = reportDetailPage(withForms, evil)
+    expect(html).not.toContain('<script>alert(1)')
+    expect(html).not.toContain('<b>x</b>')
+  })
+
+  it('reduces a hostile scope to safe characters instead of letting it into the class', () => {
+    const evil = { ...aDetail, labels: ['a" onmouseover="alert(1):Bug'] }
+    const html = reportDetailPage(withForms, evil)
+    // The scope reaches an attribute, so escaping alone is not the guarantee -
+    // the class value must be [a-z0-9-] with no way out of the quotes at all.
+    expect(html).toContain('class="label scope-a-onmouseover-alert-1"')
+    expect(html).not.toMatch(/class="label scope-[^"]*[^a-z0-9\-"]/)
+  })
+
+  it('splits scoped labels on the list rows too', () => {
+    const rows = [{ ...someReports[0]!, labels: ['Type:Bug'] }]
+    expect(reportsPage(withForms, rows)).toContain('<span class="scope">Type</span>')
   })
 })

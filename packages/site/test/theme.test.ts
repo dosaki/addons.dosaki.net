@@ -38,6 +38,26 @@ describe('THEME_CSS', () => {
     expect(THEME_CSS).toContain('.dev')
   })
 
+  it('styles the closed badge and dims the closed report card', () => {
+    expect(THEME_CSS).toContain('.badge')
+    expect(THEME_CSS).toContain('.card.report.done')
+  })
+
+  it('styles label chips and the static tally a closed report shows', () => {
+    expect(THEME_CSS).toContain('.labels')
+    expect(THEME_CSS).toContain('.label')
+    expect(THEME_CSS).toContain('.votes.done')
+  })
+
+  it('gives a scoped chip a dim scope half and a bright value half', () => {
+    expect(THEME_CSS).toContain('.label .scope')
+    expect(THEME_CSS).toContain('.label .value')
+  })
+
+  it('marks the priority scope out in bronze, so urgency reads at a glance', () => {
+    expect(THEME_CSS).toContain('.label.scope-priority')
+  })
+
   it('files the success box under arcane blue, not the old green', () => {
     expect(THEME_CSS).not.toContain('#2d6a4f')
     expect(THEME_CSS).not.toContain('#12211a')

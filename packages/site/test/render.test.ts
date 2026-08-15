@@ -81,18 +81,66 @@ describe('renderReadme', () => {
 
 describe('renderIssueMarkdown', () => {
   it('renders the section shape issueBody produces', () => {
-    const html = renderIssueMarkdown('### What happened\n\nIt **broke**')
+    const html = renderIssueMarkdown('### What happened\n\nIt **broke**', 'survivalrp')
     expect(html).toContain('<h3')
     expect(html).toContain('<strong>broke</strong>')
   })
 
   it('sanitizes a hostile body exactly like a README', () => {
-    const html = renderIssueMarkdown('<script>alert(1)</script><img src=x onerror=alert(1)>')
+    const html = renderIssueMarkdown('<script>alert(1)</script><img src=x onerror=alert(1)>', 'survivalrp')
     expect(html).not.toContain('<script')
     expect(html).not.toContain('onerror')
   })
 
   it('keeps fenced code blocks, which bug reports lean on', () => {
-    expect(renderIssueMarkdown('```\nerror line\n```')).toContain('<pre>')
+    expect(renderIssueMarkdown('```\nerror line\n```', 'survivalrp')).toContain('<pre>')
+  })
+})
+
+describe('renderIssueMarkdown issue references', () => {
+  it('links a #12 mention to that addon\'s report page', () => {
+    const html = renderIssueMarkdown('same as #12 I think', 'survivalrp')
+    expect(html).toContain('<a href="/survivalrp/reports/12">#12</a>')
+  })
+
+  it('links every mention in a line, not just the first', () => {
+    const html = renderIssueMarkdown('dupe of #7 and #12', 'survivalrp')
+    expect(html).toContain('href="/survivalrp/reports/7"')
+    expect(html).toContain('href="/survivalrp/reports/12"')
+  })
+
+  it('leaves a mention inside a code span alone', () => {
+    const html = renderIssueMarkdown('the literal `#12` token', 'survivalrp')
+    expect(html).toContain('<code>#12</code>')
+    expect(html).not.toContain('href="/survivalrp/reports/12"')
+  })
+
+  it('leaves a mention inside a fenced block alone', () => {
+    const html = renderIssueMarkdown('```\nsee #12\n```', 'survivalrp')
+    expect(html).not.toContain('href=')
+  })
+
+  it('does not relink a mention that is already link text', () => {
+    const html = renderIssueMarkdown('[#12](https://example.com/x)', 'survivalrp')
+    expect(html).toContain('href="https://example.com/x"')
+    expect(html).not.toContain('href="/survivalrp/reports/12"')
+  })
+
+  it('ignores a hash that is not a report number', () => {
+    const html = renderIssueMarkdown('#0 and # 12 and #abc', 'survivalrp')
+    expect(html).not.toContain('href="/survivalrp/reports/')
+  })
+
+  it('ignores a hash glued to a word, which is never a report reference', () => {
+    expect(renderIssueMarkdown('id7#12', 'survivalrp')).not.toContain('href=')
+  })
+
+  it('escapes the slug it builds the href from', () => {
+    const html = renderIssueMarkdown('see #12', 'a"b')
+    expect(html).not.toContain('"a"b"')
+  })
+
+  it('leaves mentions alone in a README, which has no report context', () => {
+    expect(renderReadme('see #12').html).not.toContain('href="/')
   })
 })

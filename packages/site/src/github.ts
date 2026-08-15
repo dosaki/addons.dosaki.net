@@ -78,6 +78,14 @@ export interface IssueSummary {
   title: string
   body: string | null
   createdAt: string
+  state: string
+  /** null while the issue is open; an ISO timestamp once it is closed. */
+  closedAt: string | null
+  labels: string[]
+}
+
+interface RawLabel {
+  name: string
 }
 
 interface RawIssue {
@@ -85,24 +93,42 @@ interface RawIssue {
   title: string
   body: string | null
   created_at: string
+  closed_at: string | null
   state: string
+  labels?: RawLabel[]
   pull_request?: unknown
 }
 
-/** Open issues only; GitHub's issues API mixes in pull requests, dropped here. */
-export async function listOpenIssues(
+/** A label is an object on the API; the site only ever shows its name. */
+function labelNames(raw: RawIssue): string[] {
+  return (raw.labels ?? []).map((l) => l.name)
+}
+
+/**
+ * Every state, not just open: a recently closed report stays on the site for a
+ * while. GitHub's issues API mixes in pull requests, dropped here.
+ */
+export async function listIssues(
   repo: string,
   token: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<IssueSummary[]> {
-  const res = await fetchImpl(`${API}/repos/${repo}/issues?state=open&per_page=100`, {
+  const res = await fetchImpl(`${API}/repos/${repo}/issues?state=all&per_page=100`, {
     headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'user-agent': UA },
   })
   if (!res.ok) throw new Error(`list issues failed: ${res.status} ${await res.text()}`)
   const raw = (await res.json()) as RawIssue[]
   return raw
     .filter((i) => i.pull_request === undefined)
-    .map((i) => ({ number: i.number, title: i.title, body: i.body, createdAt: i.created_at }))
+    .map((i) => ({
+      number: i.number,
+      title: i.title,
+      body: i.body,
+      createdAt: i.created_at,
+      state: i.state,
+      closedAt: i.closed_at,
+      labels: labelNames(i),
+    }))
 }
 
 export interface IssueDetail {
@@ -111,6 +137,8 @@ export interface IssueDetail {
   body: string | null
   state: string
   createdAt: string
+  closedAt: string | null
+  labels: string[]
   isPullRequest: boolean
 }
 
@@ -133,6 +161,8 @@ export async function getIssue(
     body: raw.body,
     state: raw.state,
     createdAt: raw.created_at,
+    closedAt: raw.closed_at,
+    labels: labelNames(raw),
     isPullRequest: raw.pull_request !== undefined,
   }
 }
