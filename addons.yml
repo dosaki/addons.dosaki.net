@@ -5,3 +5,5 @@ addons:
     repo: dosaki/survivalrp
   - slug: housing-herald
     repo: dosaki/housing-herald-addon
+  - slug: autobuff
+    repo: dosaki/autobuff
